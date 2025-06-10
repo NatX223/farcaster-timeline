@@ -52,6 +52,16 @@ export default function Demo(
     solanaAddress = solanaPublicKey?.toBase58();
   }
 
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  // Auto-connect Frame wallet if in Frame context
+  useEffect(() => {
+    if (context && !isConnected && connectors[0]) {
+      connect({ connector: connectors[0] });
+    }
+  }, [context, isConnected, connectors, connect]);
+
   useEffect(() => {
     console.log("isSDKLoaded", isSDKLoaded);
     console.log("context", context);
@@ -78,9 +88,6 @@ export default function Demo(
     isError: isSignTypedError,
     isPending: isSignTypedPending,
   } = useSignTypedData();
-
-  const { disconnect } = useDisconnect();
-  const { connect, connectors } = useConnect();
 
   const {
     switchChain,
@@ -349,8 +356,9 @@ export default function Demo(
               <Button
                 onClick={() => connect({ connector: connectors[0] })}
                 className="w-full"
+                disabled={!connectors[0]}
               >
-                Connect
+                Connect to Frame
               </Button>
             ) : (
               /* if context is null, mini app is running in browser */
@@ -358,12 +366,14 @@ export default function Demo(
                 <Button
                   onClick={() => connect({ connector: connectors[1] })}
                   className="w-full"
+                  disabled={!connectors[1]}
                 >
                   Connect Coinbase Wallet
                 </Button>
                 <Button
                   onClick={() => connect({ connector: connectors[2] })}
                   className="w-full"
+                  disabled={!connectors[2]}
                 >
                   Connect MetaMask
                 </Button>

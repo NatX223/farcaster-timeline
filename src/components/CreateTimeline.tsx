@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '~/components/ui/Button';
 import { Input } from '~/components/ui/input';
@@ -12,14 +12,23 @@ import { HelpCircle, X, Check, Image, Info } from 'lucide-react';
 import { Tooltip } from '~/components/ui/tooltip';
 import { TemplatePreview } from './timeline/TemplatePreview';
 import { TimelineTemplate } from '~/types/timeline';
+import dotenv from 'dotenv';
 
+dotenv.config();
 interface Tag {
   id: string;
   text: string;
 }
 
+interface UserProfile {
+  username: string;
+  display_name: string;
+  pfp_url: string;
+}
+
 export function CreateTimeline() {
   const { data: session, status } = useSession();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
   const [timelineName, setTimelineName] = useState('');
@@ -29,6 +38,57 @@ export function CreateTimeline() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
+
+  // Fetch user profile when session is available
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!session?.user?.fid) return;
+
+      try {
+        const apiKey = process.env.NEYNAR_API_KEY;
+        console.log('API Key available:', !!apiKey);
+
+        const options = {
+          method: 'GET',
+          headers: {
+            'x-neynar-experimental': 'false',
+            'x-api-key': "6748D570-BEE9-4713-AADD-FBB2CBDA25A1"
+          }
+        };
+
+        console.log('Fetching user profile for FID:', session.user.fid);
+        const response = await fetch(
+          `https://api.neynar.com/v2/farcaster/user/bulk?fids=${session.user.fid}`,
+          options
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Response:', errorText);
+          throw new Error(`Failed to fetch user profile: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('API Response:', data);
+        if (data.users && data.users.length > 0) {
+          const user = data.users[0];
+          console.log(user);
+          
+          setUserProfile({
+            username: user.username || '',
+            display_name: user.display_name || '',
+            pfp_url: user.pfp_url || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    if (status === "authenticated") {
+      fetchUserProfile();
+    }
+  }, [session, status]);
 
   const handleSignIn = useCallback(async () => {
     try {
@@ -103,9 +163,24 @@ export function CreateTimeline() {
             </div>
           ) : (
             <div className="flex items-center space-x-3 mb-8">
-              <div className="h-10 w-10 rounded-full bg-primary/20" />
+              <div className="h-10 w-10 rounded-full overflow-hidden">
+                {userProfile?.pfp_url ? (
+                  <img 
+                    src={userProfile.pfp_url} 
+                    alt={userProfile.display_name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-primary/20" />
+                )}
+              </div>
               <div>
-                <p className="font-medium">Connected as @{session?.user?.fid}</p>
+                <p className="font-medium">
+                  {userProfile?.display_name || 'Loading...'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  @{userProfile?.username || session?.user?.fid}
+                </p>
               </div>
             </div>
           )}

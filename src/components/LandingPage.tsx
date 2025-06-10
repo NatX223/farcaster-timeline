@@ -5,18 +5,97 @@ import { motion } from 'framer-motion';
 import { Star, Sparkles, ChevronDown } from 'lucide-react';
 import { Button } from "~/components/ui/Button";
 import { Timeline } from "~/components/icons/Timeline";
+import { useSession } from 'next-auth/react';
+import { signIn, getCsrfToken } from 'next-auth/react';
+import sdk from '@farcaster/frame-sdk';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useFrame } from "~/components/providers/FrameProvider";
 import { truncateAddress } from "~/lib/truncateAddress";
 import Link from 'next/link';
 
+interface UserProfile {
+  username: string;
+  display_name: string;
+  pfp_url: string;
+}
+
 export function LandingPage() {
+  const { data: session, status } = useSession();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { isSDKLoaded, context } = useFrame();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Fetch user profile when session is available
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!session?.user?.fid) return;
+
+      try {
+        const apiKey = process.env.NEYNAR_API_KEY;
+        console.log('API Key available:', !!apiKey);
+
+        const options = {
+          method: 'GET',
+          headers: {
+            'x-neynar-experimental': 'false',
+            'x-api-key': "6748D570-BEE9-4713-AADD-FBB2CBDA25A1"
+          }
+        };
+
+        console.log('Fetching user profile for FID:', session.user.fid);
+        const response = await fetch(
+          `https://api.neynar.com/v2/farcaster/user/bulk?fids=${session.user.fid}`,
+          options
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Response:', errorText);
+          throw new Error(`Failed to fetch user profile: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('API Response:', data);
+        if (data.users && data.users.length > 0) {
+          const user = data.users[0];
+          console.log(user);
+          
+          setUserProfile({
+            username: user.username || '',
+            display_name: user.display_name || '',
+            pfp_url: user.pfp_url || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    if (status === "authenticated") {
+      fetchUserProfile();
+    }
+  }, [session, status]);
+
+  const handleSignIn = useCallback(async () => {
+    try {
+      const nonce = await getCsrfToken();
+      if (!nonce) throw new Error("Unable to generate nonce");
+      
+      const result = await sdk.actions.signIn({ nonce });
+      await signIn("credentials", {
+        message: result.message,
+        signature: result.signature,
+        redirect: false,
+      });
+    } catch (error) {
+      console.error('Sign in error:', error);
+    }
+  }, []);
+
 
   const handleConnect = useCallback((connector: any) => {
     connect({ connector });
@@ -63,63 +142,41 @@ export function LandingPage() {
               </div>
             </div>
             
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#how-it-works" className="text-text hover:text-primary transition-colors">How It Works</a>
-              <a href="#explore" className="text-text hover:text-primary transition-colors">Explore</a>
-              <a href="#create" className="text-text hover:text-primary transition-colors">Create</a>
+            <div className="flex items-center space-x-8">
+              <div className="hidden md:flex space-x-8">
+                <a href="#how-it-works" className="text-text hover:text-primary transition-colors">How It Works</a>
+                <a href="#explore" className="text-text hover:text-primary transition-colors">Explore</a>
+                <a href="#create" className="text-text hover:text-primary transition-colors">Create</a>
+              </div>
               
               {/* Wallet Connect Button with Dropdown */}
-              <div className="wallet-dropdown relative">
-                <Button 
-                  variant={isConnected ? "secondary" : "primary"}
-                  className="!w-auto !max-w-none flex items-center gap-2"
-                  onClick={() => isConnected ? handleDisconnect() : setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  {isConnected ? (
-                    <>
-                      {address ? truncateAddress(address) : 'Unknown'}
-                      <ChevronDown className="h-4 w-4" />
-                    </>
-                  ) : (
-                    <>
-                      Connect
-                      <ChevronDown className="h-4 w-4" />
-                    </>
-                  )}
+              {status !== "authenticated" ? (
+                <Button onClick={handleSignIn} variant="primary" className="!w-auto">
+                  Connect
                 </Button>
-
-                {/* Dropdown Menu */}
-                {isDropdownOpen && !isConnected && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-gray-100 py-2 z-50">
-                    {context ? (
-                      <Button
-                        variant="outline"
-                        className="!w-full !max-w-none rounded-none border-0 hover:bg-gray-50"
-                        onClick={() => handleConnect(connectors[0])}
-                      >
-                        Connect Frame
-                      </Button>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-full overflow-hidden">
+                    {userProfile?.pfp_url ? (
+                      <img 
+                        src={userProfile.pfp_url} 
+                        alt={userProfile.display_name} 
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <>
-                        <Button
-                          variant="outline"
-                          className="!w-full !max-w-none rounded-none border-0 hover:bg-gray-50"
-                          onClick={() => handleConnect(connectors[1])}
-                        >
-                          Connect Coinbase Wallet
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="!w-full !max-w-none rounded-none border-0 hover:bg-gray-50"
-                          onClick={() => handleConnect(connectors[2])}
-                        >
-                          Connect MetaMask
-                        </Button>
-                      </>
+                      <div className="w-full h-full bg-primary/20" />
                     )}
                   </div>
-                )}
-              </div>
+                  <div>
+                    <p className="font-medium">
+                      {userProfile?.display_name || 'Loading...'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      @{userProfile?.username || session?.user?.fid}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -142,9 +199,9 @@ export function LandingPage() {
                 Create beautiful timelines from your casts and let the community support and earn with you.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                <Link href="/create" className="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-center">
                   Create
-                </button>
+                </Link>
                 <Link href="/explore" className="px-8 py-3 border-2 border-accent2 text-accent2 rounded-lg hover:bg-accent2/10 transition-colors text-center">
                   Explore
                 </Link>
