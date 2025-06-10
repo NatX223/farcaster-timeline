@@ -1,5 +1,5 @@
-import { Metadata } from "next";
-import App from "./app";
+import { Metadata } from 'next';
+import { LandingPage } from '~/components/LandingPage';
 import { APP_NAME, APP_DESCRIPTION, APP_OG_IMAGE_URL } from "~/lib/constants";
 import { getFrameEmbedMetadata } from "~/lib/utils";
 
@@ -19,6 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+
 export default function Home() {
-  return (<App />);
+  return (<LandingPage />);
 }

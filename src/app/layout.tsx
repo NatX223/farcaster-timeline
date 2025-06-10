@@ -1,9 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata } from 'next';
 
-import { getSession } from "~/auth"
-import "~/app/globals.css";
+import { Inter, Space_Grotesk } from 'next/font/google';
+import { getSession } from "~/auth";
 import { Providers } from "~/app/providers";
 import { APP_NAME, APP_DESCRIPTION } from "~/lib/constants";
+import './globals.css';
+
+// Import custom fonts
+import localFont from 'next/font/local';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk' });
 
 export const metadata: Metadata = {
   title: APP_NAME,
@@ -12,14 +19,16 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {  
-  const session = await getSession()
-
+}) {
+  const session = await getSession();
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
+      <head>
+        <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen bg-background font-clash antialiased">
         <Providers session={session}>{children}</Providers>
       </body>
     </html>
