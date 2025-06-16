@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from 'framer-motion';
-import { Star, Sparkles, ChevronDown } from 'lucide-react';
+import { Star, Sparkles, Circle } from 'lucide-react';
 import { Button } from "~/components/ui/Button";
 import { Timeline } from "~/components/icons/Timeline";
 import { useSession } from 'next-auth/react';
@@ -10,7 +10,6 @@ import { signIn, getCsrfToken } from 'next-auth/react';
 import sdk from '@farcaster/frame-sdk';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useFrame } from "~/components/providers/FrameProvider";
-import { truncateAddress } from "~/lib/truncateAddress";
 import Link from 'next/link';
 
 interface UserProfile {
@@ -80,6 +79,13 @@ export function LandingPage() {
     }
   }, [session, status]);
 
+  // Auto-connect Frame wallet if in Frame context
+  useEffect(() => {
+    if (session?.user?.fid && !isConnected && connectors[0]) {
+      connect({ connector: connectors[0] });
+    }
+  }, [session, isConnected, connectors, connect]);
+
   const handleSignIn = useCallback(async () => {
     try {
       const nonce = await getCsrfToken();
@@ -91,11 +97,15 @@ export function LandingPage() {
         signature: result.signature,
         redirect: false,
       });
+
+      // After successful sign-in, connect the wallet
+      if (connectors[0]) {
+        connect({ connector: connectors[0] });
+      }
     } catch (error) {
       console.error('Sign in error:', error);
     }
-  }, []);
-
+  }, [connect, connectors]);
 
   const handleConnect = useCallback((connector: any) => {
     connect({ connector });
@@ -174,6 +184,12 @@ export function LandingPage() {
                     <p className="text-sm text-gray-500">
                       @{userProfile?.username || session?.user?.fid}
                     </p>
+                  </div>
+                  <div className="flex items-center">
+                    <Circle 
+                      className={`h-2 w-2 ${isConnected ? 'text-green-500' : 'text-red-500'}`} 
+                      fill={isConnected ? 'currentColor' : 'currentColor'}
+                    />
                   </div>
                 </div>
               )}

@@ -8,11 +8,14 @@ import { Label } from '~/components/ui/label';
 import { useSession } from 'next-auth/react';
 import { signIn, getCsrfToken } from 'next-auth/react';
 import sdk from '@farcaster/frame-sdk';
-import { HelpCircle, X, Check, Image, Info } from 'lucide-react';
+import { HelpCircle, X, Check, Image, Info, Circle } from 'lucide-react';
 import { Tooltip } from '~/components/ui/tooltip';
 import { TemplatePreview } from './timeline/TemplatePreview';
 import { TimelineTemplate } from '~/types/timeline';
 import dotenv from 'dotenv';
+import { useRouter } from 'next/navigation';
+import { useConnect, useAccount } from 'wagmi';
+import { config } from '~/components/providers/WagmiProvider';
 
 dotenv.config();
 interface Tag {
@@ -26,8 +29,50 @@ interface UserProfile {
   pfp_url: string;
 }
 
+interface Cast {
+  hash: string;
+  text: string;
+  timestamp: string;
+  author: {
+    username: string;
+    display_name: string;
+    pfp_url: string;
+  };
+  embeds: Array<{
+    url: string;
+    metadata?: {
+      image?: {
+        width_px: number;
+        height_px: number;
+      };
+    };
+  }>;
+}
+
+interface TimelinePreview {
+  id: string;
+  name: string;
+  template: string;
+  creator: {
+    username: string;
+    display_name: string;
+    pfp_url: string;
+  };
+  casts: Cast[];
+  stats: {
+    supporterAllocation: string;
+    totalSupporters: number;
+  };
+  tags: string[];
+  keywords: string[];
+  createdAt: string;
+}
+
 export function CreateTimeline() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const { connect, connectors } = useConnect();
+  const { address, isConnected } = useAccount();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
@@ -38,16 +83,15 @@ export function CreateTimeline() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [timelinePreview, setTimelinePreview] = useState<TimelinePreview | null>(null);
 
-  // Fetch user profile when session is available
+  // Fetch user profile when authenticated
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!session?.user?.fid) return;
 
       try {
-        const apiKey = process.env.NEYNAR_API_KEY;
-        console.log('API Key available:', !!apiKey);
-
         const options = {
           method: 'GET',
           headers: {
@@ -56,24 +100,18 @@ export function CreateTimeline() {
           }
         };
 
-        console.log('Fetching user profile for FID:', session.user.fid);
         const response = await fetch(
           `https://api.neynar.com/v2/farcaster/user/bulk?fids=${session.user.fid}`,
           options
         );
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API Response:', errorText);
-          throw new Error(`Failed to fetch user profile: ${response.status} ${errorText}`);
+          throw new Error(`Failed to fetch user profile: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('API Response:', data);
         if (data.users && data.users.length > 0) {
           const user = data.users[0];
-          console.log(user);
-          
           setUserProfile({
             username: user.username || '',
             display_name: user.display_name || '',
@@ -90,6 +128,13 @@ export function CreateTimeline() {
     }
   }, [session, status]);
 
+  // Auto-connect Frame wallet if in Frame context
+  useEffect(() => {
+    if (session?.user?.fid && !isConnected && connectors[0]) {
+      connect({ connector: connectors[0] });
+    }
+  }, [session, isConnected, connectors, connect]);
+
   const handleSignIn = useCallback(async () => {
     try {
       const nonce = await getCsrfToken();
@@ -101,10 +146,15 @@ export function CreateTimeline() {
         signature: result.signature,
         redirect: false,
       });
+
+      // After successful sign-in, connect the wallet
+      if (connectors[0]) {
+        connect({ connector: connectors[0] });
+      }
     } catch (error) {
       console.error('Sign in error:', error);
     }
-  }, []);
+  }, [connect, connectors]);
 
   const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,21 +168,36 @@ export function CreateTimeline() {
     }
   };
 
+  const handleAddTag = (type: 'tags' | 'keywords', value: string) => {
+    if (!value.trim()) return;
+    
+    let text = value.trim();
+    
+    // Handle quoted phrases
+    if (text.startsWith('"') && text.endsWith('"')) {
+      text = text.slice(1, -1).trim();
+    } else if (text.includes('"')) {
+      return;
+    }
+    
+    const newTag = {
+      id: Math.random().toString(36).substr(2, 9),
+      text: text
+    };
+    
+    if (type === 'tags') {
+      setTags([...tags, newTag]);
+      setTagInput('');
+    } else {
+      setKeywords([...keywords, newTag]);
+      setKeywordInput('');
+    }
+  };
+
   const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, type: 'tags' | 'keywords') => {
-    if ((e.key === ' ' || e.key === 'Enter') && e.currentTarget.value.trim()) {
+    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
       e.preventDefault();
-      const newTag = {
-        id: Math.random().toString(36).substr(2, 9),
-        text: e.currentTarget.value.trim()
-      };
-      
-      if (type === 'tags') {
-        setTags([...tags, newTag]);
-        setTagInput('');
-      } else {
-        setKeywords([...keywords, newTag]);
-        setKeywordInput('');
-      }
+      handleAddTag(type, e.currentTarget.value);
     }
   };
 
@@ -141,6 +206,73 @@ export function CreateTimeline() {
       setTags(tags.filter(tag => tag.id !== id));
     } else {
       setKeywords(keywords.filter(keyword => keyword.id !== id));
+    }
+  };
+
+  const handleCreateTimeline = async () => {
+    if (!session || !timelineName || !selectedTemplate) return;
+
+    try {
+      setIsLoading(true);
+
+      const timelineData = {
+        name: timelineName,
+        template: selectedTemplate,
+        creator: {
+          fid: session.user.fid,
+          username: userProfile?.username || session.user.fid.toString(),
+          display_name: userProfile?.display_name || '',
+          pfp_url: userProfile?.pfp_url || ''
+        },
+        tags: tags.map(t => t.text),
+        keywords: keywords.map(k => k.text),
+        supporterAllocation: supporterAllocation || '0'
+      };
+
+      // Create FormData to handle file upload
+      const formData = new FormData();
+      formData.append('timelineData', JSON.stringify(timelineData));
+      if (coverImage) {
+        formData.append('coverImage', coverImage);
+      }
+
+      // Send to API
+      const response = await fetch('/api/timelines/create', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create timeline');
+      }
+
+      const { timelineId, totalSupporters } = await response.json();
+
+      // Update preview
+      const timelinePreview: TimelinePreview = {
+        id: timelineId,
+        name: timelineName,
+        template: selectedTemplate,
+        creator: {
+          username: userProfile?.username || session.user.fid.toString(),
+          display_name: userProfile?.display_name || '',
+          pfp_url: userProfile?.pfp_url || ''
+        },
+        casts: [], // We don't need to show casts in preview anymore
+        stats: {
+          supporterAllocation: supporterAllocation || '0',
+          totalSupporters
+        },
+        tags: tags.map(t => t.text),
+        keywords: keywords.map(k => k.text),
+        createdAt: new Date().toISOString()
+      };
+
+      setTimelinePreview(timelinePreview);
+    } catch (error) {
+      console.error('Error creating timeline:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -162,25 +294,33 @@ export function CreateTimeline() {
               </Button>
             </div>
           ) : (
-            <div className="flex items-center space-x-3 mb-8">
-              <div className="h-10 w-10 rounded-full overflow-hidden">
-                {userProfile?.pfp_url ? (
-                  <img 
-                    src={userProfile.pfp_url} 
-                    alt={userProfile.display_name} 
-                    className="w-full h-full object-cover"
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-full overflow-hidden">
+                  {userProfile?.pfp_url ? (
+                    <img 
+                      src={userProfile.pfp_url} 
+                      alt={userProfile.display_name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-primary/20" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium">
+                    {userProfile?.display_name || 'Loading...'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    @{userProfile?.username || session?.user?.fid}
+                  </p>
+                </div>
+                <div className="flex items-center">
+                  <Circle 
+                    className={`h-2 w-2 ${isConnected ? 'text-green-500' : 'text-red-500'}`} 
+                    fill={isConnected ? 'currentColor' : 'currentColor'}
                   />
-                ) : (
-                  <div className="w-full h-full bg-primary/20" />
-                )}
-              </div>
-              <div>
-                <p className="font-medium">
-                  {userProfile?.display_name || 'Loading...'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  @{userProfile?.username || session?.user?.fid}
-                </p>
+                </div>
               </div>
             </div>
           )}
@@ -231,13 +371,23 @@ export function CreateTimeline() {
           <div className="space-y-2 mb-6">
             <Label htmlFor="tags">Tags</Label>
             <div className="space-y-2">
-              <Input
-                id="tags"
-                placeholder="Type and press space to add tags"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => handleTagInputKeyDown(e, 'tags')}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="tags"
+                  placeholder="Type and press enter to add tags"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => handleTagInputKeyDown(e, 'tags')}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => handleAddTag('tags', tagInput)}
+                  disabled={!tagInput.trim()}
+                  className="w-[80px]"
+                >
+                  Add
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {tags.map(tag => (
                   <span
@@ -266,13 +416,23 @@ export function CreateTimeline() {
               </Tooltip>
             </div>
             <div className="space-y-2">
-              <Input
-                id="keywords"
-                placeholder="Type and press space to add keywords"
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onKeyDown={(e) => handleTagInputKeyDown(e, 'keywords')}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="keywords"
+                  placeholder="Type and press enter to add keywords"
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  onKeyDown={(e) => handleTagInputKeyDown(e, 'keywords')}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => handleAddTag('keywords', keywordInput)}
+                  disabled={!keywordInput.trim()}
+                  className="w-[80px]"
+                >
+                  Add
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {keywords.map(keyword => (
                   <span
@@ -338,10 +498,101 @@ export function CreateTimeline() {
           <Button
             variant="primary"
             className="w-full"
-            disabled={!session || !timelineName || !selectedTemplate}
+            disabled={!session || !timelineName || !selectedTemplate || isLoading}
+            onClick={handleCreateTimeline}
           >
-            Create Timeline
+            {isLoading ? 'Creating...' : 'Create Timeline'}
           </Button>
+
+          {/* Timeline Preview */}
+          {timelinePreview && (
+            <div className="mt-8 space-y-6">
+              <div className="border-t pt-8">
+                <h2 className="text-2xl font-bold mb-6">Timeline Preview</h2>
+                
+                {/* Timeline Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={timelinePreview.creator.pfp_url}
+                      alt={timelinePreview.creator.display_name}
+                      className="w-12 h-12 rounded-full"
+                    />
+                    <div>
+                      <h3 className="font-semibold">{timelinePreview.creator.display_name}</h3>
+                      <p className="text-sm text-gray-500">@{timelinePreview.creator.username}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">Created {new Date(timelinePreview.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                {/* Timeline Stats */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500">Supporter Allocation</p>
+                    <p className="text-lg font-semibold">{timelinePreview.stats.supporterAllocation}%</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500">Total Supporters</p>
+                    <p className="text-lg font-semibold">{timelinePreview.stats.totalSupporters}</p>
+                  </div>
+                </div>
+
+                {/* Tags and Keywords */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {timelinePreview.tags.map((tag, index) => (
+                    <span key={index} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
+                      {tag}
+                    </span>
+                  ))}
+                  {timelinePreview.keywords.map((keyword, index) => (
+                    <span key={index} className="px-3 py-1 bg-accent2/10 text-accent2 rounded-full text-sm">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Casts */}
+                <div className="space-y-4">
+                  {timelinePreview.casts.map((cast) => (
+                    <div key={cast.hash} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <img
+                          src={cast.author.pfp_url}
+                          alt={cast.author.display_name}
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium">{cast.author.display_name}</span>
+                            <span className="text-gray-500">@{cast.author.username}</span>
+                            <span className="text-gray-400 text-sm">
+                              {new Date(cast.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-gray-700">{cast.text}</p>
+                          {cast.embeds.length > 0 && (
+                            <div className="mt-2">
+                              {cast.embeds.map((embed, index) => (
+                                <img
+                                  key={index}
+                                  src={embed.url}
+                                  alt=""
+                                  className="max-w-full rounded-lg"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
