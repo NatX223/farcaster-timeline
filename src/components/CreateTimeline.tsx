@@ -14,10 +14,17 @@ import { TemplatePreview } from './timeline/TemplatePreview';
 import { TimelineTemplate } from '~/types/timeline';
 import dotenv from 'dotenv';
 import { useRouter } from 'next/navigation';
-import { useConnect, useAccount } from 'wagmi';
+import { useConnect, useAccount, useWalletClient } from 'wagmi';
 import { config } from '~/components/providers/WagmiProvider';
+import { createPublicClient, http, Address, Hex } from 'viem';
+import { baseSepolia } from 'viem/chains';
+import { setApiKey, createCoin, DeployCurrency, validateMetadataURIContent, getCoinCreateFromLogs, ValidMetadataURI } from '@zoralabs/coins-sdk';
 
 dotenv.config();
+
+// Set up Zora API key
+setApiKey("zora_api_fe72658b89edc8fdb08a34c69ef6c03d9a0fd4023424468250251dc15ba889ab");
+
 interface Tag {
   id: string;
   text: string;
@@ -73,6 +80,7 @@ export function CreateTimeline() {
   const router = useRouter();
   const { connect, connectors } = useConnect();
   const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
@@ -85,6 +93,12 @@ export function CreateTimeline() {
   const [keywordInput, setKeywordInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [timelinePreview, setTimelinePreview] = useState<TimelinePreview | null>(null);
+
+  // Create public client
+  const publicClient = createPublicClient({
+    chain: config.chains[0], // Using the first chain from config (baseSepolia)
+    transport: http()
+  });
 
   // Fetch user profile when authenticated
   useEffect(() => {
@@ -209,11 +223,51 @@ export function CreateTimeline() {
     }
   };
 
+  const createZoraCoin = async (metadataUrl: string, timelineName: string) => {
+    if (!walletClient || !address) {
+      console.error('Wallet client or address not available');
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const coinParams = {
+        name: timelineName,
+        symbol: timelineName.substring(0, 3).toUpperCase(), // Using first 3 letters as symbol
+        uri: "ipfs://bafkreid2a7ygptk2bfeyey6xagtyqs7fbgaqrujkz3rul5h2s4iffefyhy",
+        payoutRecipient: address as Address,
+        chainId: baseSepolia.id,
+        currency: DeployCurrency.ETH,
+      };
+
+      console.log('Creating coin with params:', coinParams);
+      const result = await createCoin(coinParams, walletClient, publicClient, {
+        gasMultiplier: 120,
+      });
+
+      console.log('Coin creation transaction hash:', result.hash);
+      console.log('Coin creation result:', result);
+
+      // Get coin address from logs
+      const coinDeployment = getCoinCreateFromLogs(result.receipt);
+      console.log('Deployed coin address:', coinDeployment?.coin);
+
+      if (!coinDeployment?.coin) {
+        throw new Error('Failed to get coin address from deployment logs');
+      }
+
+      return coinDeployment.coin;
+    } catch (error) {
+      console.error('Error in createZoraCoin:', error);
+      throw error;
+    }
+  };
+
   const handleCreateTimeline = async () => {
     if (!session || !timelineName || !selectedTemplate) return;
 
     try {
       setIsLoading(true);
+      console.log('Starting timeline creation process...');
 
       const timelineData = {
         name: timelineName,
@@ -229,6 +283,8 @@ export function CreateTimeline() {
         supporterAllocation: supporterAllocation || '0'
       };
 
+      console.log('Timeline data prepared:', timelineData);
+
       // Create FormData to handle file upload
       const formData = new FormData();
       formData.append('timelineData', JSON.stringify(timelineData));
@@ -237,6 +293,7 @@ export function CreateTimeline() {
       }
 
       // Send to API
+      console.log('Sending timeline creation request to API...');
       const response = await fetch('/api/timelines/create', {
         method: 'POST',
         body: formData
@@ -246,7 +303,27 @@ export function CreateTimeline() {
         throw new Error('Failed to create timeline');
       }
 
-      const { timelineId, totalSupporters } = await response.json();
+      const { timelineId, totalSupporters, metadataUrl } = await response.json();
+      console.log('Timeline created successfully:', { timelineId, totalSupporters, metadataUrl });
+
+      // Create Zora coin
+      console.log('Starting Zora coin creation...');
+      const coinAddress = await createZoraCoin(metadataUrl, timelineName);
+      console.log('Zora coin created successfully:', coinAddress);
+
+      // Update timeline with coin address
+      console.log('Updating timeline with coin address...');
+      const updateResponse = await fetch(`/api/timelines/${timelineId}/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ coinAddress }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error('Failed to update timeline with coin address');
+      }
 
       // Update preview
       const timelinePreview: TimelinePreview = {
@@ -258,7 +335,7 @@ export function CreateTimeline() {
           display_name: userProfile?.display_name || '',
           pfp_url: userProfile?.pfp_url || ''
         },
-        casts: [], // We don't need to show casts in preview anymore
+        casts: [],
         stats: {
           supporterAllocation: supporterAllocation || '0',
           totalSupporters
@@ -269,8 +346,10 @@ export function CreateTimeline() {
       };
 
       setTimelinePreview(timelinePreview);
+      console.log('Timeline creation process completed successfully');
     } catch (error) {
-      console.error('Error creating timeline:', error);
+      console.error('Error in handleCreateTimeline:', error);
+      // You might want to show an error message to the user here
     } finally {
       setIsLoading(false);
     }

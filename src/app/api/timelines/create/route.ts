@@ -26,6 +26,35 @@ interface EngagementData {
   allocation: number;
 }
 
+interface TimelineMetadata {
+  name: string;
+  description: string;
+  image: string;
+  properties: {
+    category: string;
+  };
+}
+
+async function fetchCastReactions(castHash: string) {
+  const options = {
+    method: 'GET',
+    headers: {
+      'x-api-key': 'C3097677-5CC3-418D-9C95-5F2189C69EC6'
+    }
+  };
+
+  const response = await fetch(
+    `https://api.neynar.com/v2/farcaster/reactions/cast/?hash=${castHash}&limit=25&types=all`,
+    options
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch reactions for cast ${castHash}`);
+  }
+
+  return response.json();
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -58,27 +87,30 @@ export async function POST(request: Request) {
     // 2. Calculate engagement and allocations
     const engagementMap = new Map<string, EngagementData>();
 
+    // Fetch reactions for each cast
     for (const cast of casts) {
-      // Process likes
-      if (cast.reactions?.likes) {
-        for (const like of cast.reactions.likes) {
-          const fid = like.fid.toString();
+      try {
+        const reactionsData = await fetchCastReactions(cast.hash);
+        
+        // Process reactions
+        for (const reaction of reactionsData.reactions) {
+          const fid = reaction.user.fid.toString();
           const current = engagementMap.get(fid) || { fid, likes: 0, recasts: 0, totalScore: 0, allocation: 0 };
-          current.likes += 1;
-          current.totalScore += 1;
+          
+          if (reaction.reaction_type === 'like') {
+            current.likes += 1;
+            current.totalScore += 1;
+          } else if (reaction.reaction_type === 'recast') {
+            current.recasts += 1;
+            current.totalScore += 2;
+          }
+          
           engagementMap.set(fid, current);
         }
-      }
-
-      // Process recasts
-      if (cast.reactions?.recasts) {
-        for (const recast of cast.reactions.recasts) {
-          const fid = recast.fid.toString();
-          const current = engagementMap.get(fid) || { fid, likes: 0, recasts: 0, totalScore: 0, allocation: 0 };
-          current.recasts += 1;
-          current.totalScore += 2;
-          engagementMap.set(fid, current);
-        }
+      } catch (error) {
+        console.error(`Error fetching reactions for cast ${cast.hash}:`, error);
+        // Continue with next cast even if one fails
+        continue;
       }
     }
 
@@ -92,7 +124,7 @@ export async function POST(request: Request) {
     const allocationCap = parseFloat(timelineData.supporterAllocation);
     const supporters = Array.from(engagementMap.values()).map(data => ({
       ...data,
-      allocation: (data.totalScore / totalEngagement) * allocationCap
+      allocation: totalEngagement > 0 ? (data.totalScore / totalEngagement) * allocationCap : 0
     }));
 
     // 3. Upload cover image if exists
@@ -103,12 +135,31 @@ export async function POST(request: Request) {
       coverImageUrl = await getDownloadURL(snapshot.ref);
     }
 
-    // 4. Save timeline to Firestore
+    // Create metadata JSON
+    const metadata: TimelineMetadata = {
+      name: timelineData.name,
+      description: `Farcaster Timeline - ${timelineData.name}`,
+      image: coverImageUrl,
+      properties: {
+        category: "social"
+      }
+    };
+
+    // Convert metadata to JSON string and create a Blob
+    const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+    
+    // Upload metadata JSON to Firebase Storage
+    const metadataRef = ref(storage, `timeline-metadata/${Date.now()}-${timelineData.name}.json`);
+    const metadataSnapshot = await uploadBytes(metadataRef, metadataBlob);
+    const metadataUrl = await getDownloadURL(metadataSnapshot.ref);
+
+    // 4. Save timeline to Firestore with metadata URL
     const timelineDoc = {
       name: timelineData.name,
       template: timelineData.template,
       creator: timelineData.creator,
       coverImage: coverImageUrl,
+      metadataUrl: metadataUrl,
       tags: timelineData.tags,
       keywords: timelineData.keywords,
       supporterAllocation: timelineData.supporterAllocation,
@@ -133,7 +184,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       timelineId: docRef.id,
-      totalSupporters: supporters.length
+      totalSupporters: supporters.length,
+      metadataUrl: metadataUrl
     });
   } catch (error) {
     console.error('Error creating timeline:', error);

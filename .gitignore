@@ -41,3 +41,4 @@ yarn-error.log*
 next-env.d.ts
 src/app/oldPage.tsx
 src/app/oldLayout.tsx
+
