@@ -5,6 +5,7 @@ import type { Session } from "next-auth"
 import { SessionProvider } from "next-auth/react"
 import { FrameProvider } from "~/components/providers/FrameProvider";
 import { SafeFarcasterSolanaProvider } from "~/components/providers/SafeFarcasterSolanaProvider";
+import { UserProfileProvider } from '~/components/providers/UserProfileContext';
 
 const WagmiProvider = dynamic(
   () => import("~/components/providers/WagmiProvider"),
@@ -20,7 +21,9 @@ export function Providers({ session, children }: { session: Session | null, chil
       <WagmiProvider>
         <FrameProvider>
           <SafeFarcasterSolanaProvider endpoint={solanaEndpoint}>
-            {children}
+            <UserProfileProvider>
+              {children}
+            </UserProfileProvider>
           </SafeFarcasterSolanaProvider>
         </FrameProvider>
       </WagmiProvider>

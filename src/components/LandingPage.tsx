@@ -11,18 +11,20 @@ import sdk from '@farcaster/frame-sdk';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useFrame } from "~/components/providers/FrameProvider";
 import Link from 'next/link';
+import { useUserProfile } from '~/components/providers/UserProfileContext';
 
 interface UserProfile {
   username: string;
   display_name: string;
   pfp_url: string;
+  fid: string;
 }
 
 export function LandingPage() {
   const { data: session, status } = useSession();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { userProfile, setUserProfile } = useUserProfile();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { isSDKLoaded, context } = useFrame();
@@ -67,6 +69,7 @@ export function LandingPage() {
             username: user.username || '',
             display_name: user.display_name || '',
             pfp_url: user.pfp_url || '',
+            fid: session.user.fid,
           });
         }
       } catch (error) {
@@ -77,7 +80,7 @@ export function LandingPage() {
     if (status === "authenticated") {
       fetchUserProfile();
     }
-  }, [session, status]);
+  }, [session, status, setUserProfile]);
 
   // Auto-connect Frame wallet if in Frame context
   useEffect(() => {
@@ -106,16 +109,6 @@ export function LandingPage() {
       console.error('Sign in error:', error);
     }
   }, [connect, connectors]);
-
-  const handleConnect = useCallback((connector: any) => {
-    connect({ connector });
-    setIsDropdownOpen(false);
-  }, [connect]);
-
-  const handleDisconnect = useCallback(() => {
-    disconnect();
-    setIsDropdownOpen(false);
-  }, [disconnect]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

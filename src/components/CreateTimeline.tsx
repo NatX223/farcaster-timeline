@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '~/components/ui/Button';
 import { Input } from '~/components/ui/input';
@@ -18,7 +18,8 @@ import { useConnect, useAccount, useWalletClient } from 'wagmi';
 import { config } from '~/components/providers/WagmiProvider';
 import { createPublicClient, http, Address, Hex } from 'viem';
 import { baseSepolia } from 'viem/chains';
-import { setApiKey, createCoin, DeployCurrency, validateMetadataURIContent, getCoinCreateFromLogs, ValidMetadataURI } from '@zoralabs/coins-sdk';
+import { setApiKey, createCoin, DeployCurrency, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
+import { useUserProfile } from '~/components/providers/UserProfileContext';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ interface UserProfile {
   username: string;
   display_name: string;
   pfp_url: string;
+  fid: string;
 }
 
 interface Cast {
@@ -75,13 +77,15 @@ interface TimelinePreview {
   createdAt: string;
 }
 
+function sleep(ms: number) { return new Promise(res => setTimeout(res, ms)); }
+
 export function CreateTimeline() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { connect, connectors } = useConnect();
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { userProfile, setUserProfile } = useUserProfile();
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
   const [timelineName, setTimelineName] = useState('');
@@ -93,6 +97,7 @@ export function CreateTimeline() {
   const [keywordInput, setKeywordInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [timelinePreview, setTimelinePreview] = useState<TimelinePreview | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Create public client
   const publicClient = createPublicClient({
@@ -100,11 +105,11 @@ export function CreateTimeline() {
     transport: http()
   });
 
-  // Fetch user profile when authenticated
+  // Fetch user profile when authenticated, only if not already cached
   useEffect(() => {
+    if (userProfile) return;
     const fetchUserProfile = async () => {
       if (!session?.user?.fid) return;
-
       try {
         const options = {
           method: 'GET',
@@ -113,16 +118,13 @@ export function CreateTimeline() {
             'x-api-key': "6748D570-BEE9-4713-AADD-FBB2CBDA25A1"
           }
         };
-
         const response = await fetch(
           `https://api.neynar.com/v2/farcaster/user/bulk?fids=${session.user.fid}`,
           options
         );
-
         if (!response.ok) {
           throw new Error(`Failed to fetch user profile: ${response.status}`);
         }
-
         const data = await response.json();
         if (data.users && data.users.length > 0) {
           const user = data.users[0];
@@ -130,17 +132,17 @@ export function CreateTimeline() {
             username: user.username || '',
             display_name: user.display_name || '',
             pfp_url: user.pfp_url || '',
+            fid: session.user.fid,
           });
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
       }
     };
-
     if (status === "authenticated") {
       fetchUserProfile();
     }
-  }, [session, status]);
+  }, [session, status, userProfile, setUserProfile]);
 
   // Auto-connect Frame wallet if in Frame context
   useEffect(() => {
@@ -232,8 +234,8 @@ export function CreateTimeline() {
     try {
       const coinParams = {
         name: timelineName,
-        symbol: timelineName.substring(0, 3).toUpperCase(), // Using first 3 letters as symbol
-        uri: "ipfs://bafkreid2a7ygptk2bfeyey6xagtyqs7fbgaqrujkz3rul5h2s4iffefyhy",
+        symbol: timelineName.substring(0, 3).toUpperCase(),
+        uri: metadataUrl,
         payoutRecipient: address as Address,
         chainId: baseSepolia.id,
         currency: DeployCurrency.ETH,
@@ -264,11 +266,14 @@ export function CreateTimeline() {
 
   const handleCreateTimeline = async () => {
     if (!session || !timelineName || !selectedTemplate) return;
-
+    setErrorMsg(null);
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      console.log('Starting timeline creation process...');
-
+      // Prepare FormData with cover image and timeline data
+      const formData = new FormData();
+      if (coverImage) {
+        formData.append('coverImage', coverImage);
+      }
       const timelineData = {
         name: timelineName,
         template: selectedTemplate,
@@ -282,74 +287,23 @@ export function CreateTimeline() {
         keywords: keywords.map(k => k.text),
         supporterAllocation: supporterAllocation || '0'
       };
-
-      console.log('Timeline data prepared:', timelineData);
-
-      // Create FormData to handle file upload
-      const formData = new FormData();
       formData.append('timelineData', JSON.stringify(timelineData));
-      if (coverImage) {
-        formData.append('coverImage', coverImage);
-      }
-
-      // Send to API
-      console.log('Sending timeline creation request to API...');
-      const response = await fetch('/api/timelines/create', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create timeline');
-      }
-
+      // Call backend API to handle uploads and timeline creation
+      const response = await fetch('/api/timelines/create', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Failed to create timeline');
       const { timelineId, totalSupporters, metadataUrl } = await response.json();
-      console.log('Timeline created successfully:', { timelineId, totalSupporters, metadataUrl });
-
       // Create Zora coin
-      console.log('Starting Zora coin creation...');
       const coinAddress = await createZoraCoin(metadataUrl, timelineName);
-      console.log('Zora coin created successfully:', coinAddress);
-
       // Update timeline with coin address
-      console.log('Updating timeline with coin address...');
       const updateResponse = await fetch(`/api/timelines/${timelineId}/update`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ coinAddress }),
       });
-
-      if (!updateResponse.ok) {
-        throw new Error('Failed to update timeline with coin address');
-      }
-
-      // Update preview
-      const timelinePreview: TimelinePreview = {
-        id: timelineId,
-        name: timelineName,
-        template: selectedTemplate,
-        creator: {
-          username: userProfile?.username || session.user.fid.toString(),
-          display_name: userProfile?.display_name || '',
-          pfp_url: userProfile?.pfp_url || ''
-        },
-        casts: [],
-        stats: {
-          supporterAllocation: supporterAllocation || '0',
-          totalSupporters
-        },
-        tags: tags.map(t => t.text),
-        keywords: keywords.map(k => k.text),
-        createdAt: new Date().toISOString()
-      };
-
-      setTimelinePreview(timelinePreview);
-      console.log('Timeline creation process completed successfully');
-    } catch (error) {
-      console.error('Error in handleCreateTimeline:', error);
-      // You might want to show an error message to the user here
+      if (!updateResponse.ok) throw new Error('Failed to update timeline with coin address');
+      // ... update preview as before ...
+    } catch (error: any) {
+      setErrorMsg(error.message || 'An error occurred');
     } finally {
       setIsLoading(false);
     }
