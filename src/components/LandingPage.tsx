@@ -12,6 +12,8 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useFrame } from "~/components/providers/FrameProvider";
 import Link from 'next/link';
 import { useUserProfile } from '~/components/providers/UserProfileContext';
+import { db } from '~/lib/firebase';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 interface UserProfile {
   username: string;
@@ -29,6 +31,8 @@ export function LandingPage() {
   const { disconnect } = useDisconnect();
   const { isSDKLoaded, context } = useFrame();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [featuredTimelines, setFeaturedTimelines] = useState<any[]>([]);
+  const [isFeaturedLoading, setIsFeaturedLoading] = useState(true);
 
   // Fetch user profile when session is available
   useEffect(() => {
@@ -129,6 +133,31 @@ export function LandingPage() {
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    async function fetchFeaturedTimelines() {
+      setIsFeaturedLoading(true);
+      // Get the 3 latest timelines by createdAt
+      const q = query(collection(db, 'timelines'), orderBy('createdAt', 'desc'), limit(3));
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          title: d.name,
+          creator: {
+            username: d.creator?.username || '',
+            avatarUrl: d.creator?.pfp_url || '',
+          },
+          tags: d.tags || [],
+          coverImage: d.coverImage || '',
+        };
+      });
+      setFeaturedTimelines(data);
+      setIsFeaturedLoading(false);
+    }
+    fetchFeaturedTimelines();
   }, []);
 
   return (
@@ -284,47 +313,61 @@ export function LandingPage() {
       <section id="explore" className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold font-clash text-center mb-12">Featured Timelines</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1, 2, 3].map((_, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => window.location.href = `/timeline/${index + 1}`}
-              >
-                <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent2/10" />
-                <div className="p-6">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="h-10 w-10 rounded-full bg-primary/20" />
-                    <div>
-                      <h3 className="font-semibold font-clash">Creator Name</h3>
-                      <p className="text-sm text-gray-500 font-clash">Timeline Title</p>
+          {isFeaturedLoading ? (
+            <div className="text-center py-12">Loading...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {featuredTimelines.map((timeline, index) => (
+                <motion.div
+                  key={timeline.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => window.location.href = `/timeline/${timeline.id}`}
+                >
+                  <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent2/10 flex items-center justify-center">
+                    {timeline.coverImage ? (
+                      <img src={timeline.coverImage} alt={timeline.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-gray-400">No Image</span>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/20 overflow-hidden">
+                        {timeline.creator.avatarUrl ? (
+                          <img src={timeline.creator.avatarUrl} alt={timeline.creator.username} className="w-full h-full object-cover" />
+                        ) : null}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold font-clash">@{timeline.creator.username}</h3>
+                        <p className="text-sm text-gray-500 font-clash">{timeline.title}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {timeline.tags.map((tag: string) => (
+                        <span key={tag} className="px-2 py-1 bg-background rounded-full text-xs">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex justify-center">
+                      <button 
+                        className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Add support functionality here
+                        }}
+                      >
+                        Support
+                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {['AI', 'Zora', 'Farcaster'].map((tag) => (
-                      <span key={tag} className="px-2 py-1 bg-background rounded-full text-xs">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex justify-center">
-                    <button 
-                      className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Add support functionality here
-                      }}
-                    >
-                      Support
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
           <div className="text-center mt-12">
             <Link href="/explore" className="inline-block px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
               View More Timelines
