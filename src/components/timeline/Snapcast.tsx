@@ -18,7 +18,7 @@ export function Snapcast({ timeline }: SnapcastProps) {
       <div className="flex items-center justify-between">
         {timeline.casts.map((cast, index) => (
           <motion.div
-            key={cast.id}
+            key={cast.hash}
             initial={{ opacity: 0, scale: 0.8 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}

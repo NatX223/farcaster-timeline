@@ -23,7 +23,7 @@ export function BranchingMemory({ timeline }: BranchingMemoryProps) {
       <div className="mt-12 space-y-8">
         {timeline.casts.map((cast, index) => (
           <motion.div
-            key={cast.id}
+            key={cast.hash}
             initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}

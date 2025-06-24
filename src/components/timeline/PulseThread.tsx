@@ -18,7 +18,7 @@ export function PulseThread({ timeline }: PulseThreadProps) {
       <div className="space-y-8">
         {timeline.casts.map((cast, index) => (
           <motion.div
-            key={cast.id}
+            key={cast.hash}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

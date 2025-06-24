@@ -6,120 +6,62 @@ import { PulseThread } from './PulseThread';
 import { Snapcast } from './Snapcast';
 import { BranchingMemory } from './BranchingMemory';
 import { TimelineData } from '~/types/timeline';
+import { Cast } from '~/types/timeline';
 import { Button } from '~/components/ui/Button';
 import { Input } from '~/components/ui/input';
 import { Dialog } from "@headlessui/react";
-
-// Mock data - replace with actual data fetching
-const mockTimelines: Record<string, TimelineData> = {
-  '1': {
-    id: '1',
-    name: 'The Rise of ETH L2s',
-    coverImage: '/images/timeline-cover.jpg',
-    template: 'pulse-thread',
-    tags: ['ethereum', 'l2', 'scaling'],
-    keywords: ['#web3', '#ethereum'],
-    supporterAllocation: 12,
-    casts: [
-      {
-        id: '1',
-        content: 'First cast in the timeline. This is a sample cast to demonstrate the timeline layout.',
-        timestamp: '2024-03-20T10:00:00Z',
-        username: 'user1',
-        avatar: '',
-        stats: {
-          likes: 42,
-          recasts: 12,
-          quotes: 5,
-        },
-      },
-      {
-        id: '2',
-        content: 'Second cast with some interesting content. The timeline continues to unfold...',
-        timestamp: '2024-03-20T11:30:00Z',
-        username: 'user2',
-        avatar: '',
-        stats: {
-          likes: 28,
-          recasts: 8,
-          quotes: 3,
-        },
-      },
-      {
-        id: '3',
-        content: 'Third cast showing how the timeline flows. Each template has its unique way of presenting the story.',
-        timestamp: '2024-03-20T13:15:00Z',
-        username: 'user3',
-        avatar: '',
-        stats: {
-          likes: 35,
-          recasts: 15,
-          quotes: 7,
-        },
-      },
-    ],
-    creator: {
-      fid: '1',
-      username: 'natx223',
-      avatar: '',
-    },
-  },
-  '2': {
-    id: '2',
-    name: 'Web3 Gaming Evolution',
-    coverImage: '/images/timeline-cover.jpg',
-    template: 'snapcast',
-    tags: ['gaming', 'web3', 'nft'],
-    keywords: ['#web3gaming', '#nft'],
-    supporterAllocation: 15,
-    casts: [
-      {
-        id: '1',
-        content: 'The beginning of Web3 gaming...',
-        timestamp: '2024-03-19T10:00:00Z',
-        username: 'gamer1',
-        avatar: '',
-        stats: {
-          likes: 56,
-          recasts: 23,
-          quotes: 12,
-        },
-      },
-      {
-        id: '2',
-        content: 'Major milestones in blockchain gaming...',
-        timestamp: '2024-03-19T11:30:00Z',
-        username: 'gamer2',
-        avatar: '',
-        stats: {
-          likes: 78,
-          recasts: 34,
-          quotes: 15,
-        },
-      },
-    ],
-    creator: {
-      fid: '2',
-      username: 'web3gamer',
-      avatar: '',
-    },
-  },
-};
+import { db } from '~/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface TimelineViewProps {
   timelineId: string;
 }
 
 export function TimelineView({ timelineId }: TimelineViewProps) {
+  const [timeline, setTimeline] = useState<any>(null);
+  const [casts, setCasts] = useState<Cast[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isExchangeOpen, setIsExchangeOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const { scrollY } = useScroll();
   const coverHeight = useTransform(scrollY, [0, 300], [300, 200]);
 
-  // Get timeline data based on ID
-  const timeline = mockTimelines[timelineId];
+  useEffect(() => {
+    async function fetchTimelineAndCasts() {
+      setLoading(true);
+      try {
+        // Fetch timeline doc
+        const timelineRef = doc(db, 'timelines', timelineId);
+        const timelineSnap = await getDoc(timelineRef);
+        if (!timelineSnap.exists()) {
+          setTimeline(null);
+          setLoading(false);
+          return;
+        }
+        const timelineData = timelineSnap.data();
+        setTimeline({ ...timelineData, id: timelineId });
 
-  // If timeline not found, show error state
+        // Fetch casts from our API endpoint
+        const res = await fetch(`/api/timelines/${timelineId}/casts`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch casts');
+        }
+        const data = await res.json();
+        setCasts(data.casts);
+      } catch (error) {
+        console.error('Error fetching timeline and casts:', error);
+        // Handle error appropriately
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTimelineAndCasts();
+  }, [timelineId]);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   if (!timeline) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -131,21 +73,57 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
     );
   }
 
-  // Mock stats - replace with actual data
+  // Dummy stats
   const stats = {
-    allocation: `${timeline.supporterAllocation}%`,
+    allocation: '12%',
     earnings: 'Ξ 0.32',
     marketCap: '$9,210.45',
   };
 
+  // Replace getTemplateComponent with template switch and pass casts to timeline
   const getTemplateComponent = () => {
+    const timelineWithCasts = { ...timeline, casts };
     switch (timeline.template) {
       case 'pulse-thread':
-        return <PulseThread timeline={timeline} />;
+        return <PulseThread timeline={timelineWithCasts} />;
       case 'snapcast':
-        return <Snapcast timeline={timeline} />;
+        return <Snapcast timeline={timelineWithCasts} />;
       case 'branching-memory':
-        return <BranchingMemory timeline={timeline} />;
+        return <BranchingMemory timeline={timelineWithCasts} />;
+      default:
+        // fallback: show a simple list with media
+        return (
+          <div className="space-y-6">
+            {casts.map((cast) => (
+              <div key={cast.hash} className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-start space-x-3 mb-2">
+                  <img
+                    src={timeline.creator?.pfp_url || ''}
+                    alt={timeline.creator?.username || ''}
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <div>
+                    <span className="font-medium">{timeline.creator?.display_name || ''}</span>
+                    <span className="text-gray-500 ml-2">@{timeline.creator?.username || ''}</span>
+                    <span className="text-gray-400 text-sm ml-2">{new Date(cast.timestamp).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <p className="mb-2 text-gray-700">{cast.text}</p>
+                {cast.media && cast.media.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {cast.media.map((media, idx) => (
+                      media.type.startsWith('image') ? (
+                        <img key={idx} src={media.url} alt="cast media" className="max-w-xs rounded-lg" />
+                      ) : media.type.startsWith('video') ? (
+                        <video key={idx} src={media.url} controls className="max-w-xs rounded-lg" />
+                      ) : null
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
     }
   };
 
@@ -156,10 +134,10 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center space-x-3">
             <div className="h-10 w-10 rounded-full bg-primary/20 overflow-hidden">
-              <img src={timeline.creator.avatar} alt={timeline.creator.username} className="w-full h-full object-cover" />
+              <img src={timeline.creator?.pfp_url || ''} alt={timeline.creator?.username || ''} className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="font-medium">@{timeline.creator.username}</p>
+              <p className="font-medium">@{timeline.creator?.username || ''}</p>
             </div>
           </div>
         </div>

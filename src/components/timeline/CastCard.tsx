@@ -20,31 +20,35 @@ export function CastCard({ cast, className = '', onHover }: CastCardProps) {
     >
       <div className="p-4">
         <div className="flex items-center space-x-3 mb-3">
-          <div className="h-10 w-10 rounded-full overflow-hidden bg-primary/20">
-            <Image
-              src={cast.avatar}
-              alt={cast.username}
-              width={40}
-              height={40}
-              className="w-full h-full object-cover"
-            />
-          </div>
           <div>
-            <p className="font-medium text-sm">@{cast.username}</p>
             <p className="text-xs text-gray-500">{cast.timestamp}</p>
           </div>
         </div>
 
-        <p className="text-sm mb-3">{cast.content}</p>
+        <p className="text-sm mb-3">{cast.text}</p>
 
-        {cast.media && (
-          <div className="relative aspect-video rounded-lg overflow-hidden mb-3">
-            <Image
-              src={cast.media.url}
-              alt="Cast media"
-              fill
-              className="object-cover"
-            />
+        {Array.isArray(cast.media) && cast.media.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {cast.media.map((media, idx) => (
+              media.type === 'image' ? (
+                <Image
+                  key={idx}
+                  src={media.url}
+                  alt="Cast media"
+                  width={400}
+                  height={225}
+                  className="rounded-lg object-cover"
+                />
+              ) : media.type === 'video' ? (
+                <video
+                  key={idx}
+                  src={media.url}
+                  controls
+                  className="rounded-lg max-w-full h-auto"
+                  style={{ maxWidth: 400, maxHeight: 225 }}
+                />
+              ) : null
+            ))}
           </div>
         )}
 
@@ -59,7 +63,7 @@ export function CastCard({ cast, className = '', onHover }: CastCardProps) {
           </div>
           <div className="flex items-center space-x-1">
             <MessageSquare className="h-4 w-4" />
-            <span>{cast.stats.quotes}</span>
+            <span>{cast.stats.replies}</span>
           </div>
         </div>
       </div>
