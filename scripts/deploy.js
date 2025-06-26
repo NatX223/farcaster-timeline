@@ -1,5 +1,7 @@
-import { execSync, spawn } from 'child_process';
+import { execSync, spawn, spawnSync } from 'child_process';
+import which from 'which';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import inquirer from 'inquirer';
@@ -295,42 +297,47 @@ async function loginToVercel() {
   console.log('3. Complete the Vercel account setup in your browser');
   console.log('4. Return here once your Vercel account is created\n');
   console.log('\nNote: you may need to cancel this script with ctrl+c and run it again if creating a new vercel account');
-  
-  // Start the login process
-  const child = spawn('vercel', ['login'], {
-    stdio: 'inherit'
+
+  // ✅ Get full path to the vercel binary
+  const vercelPath = which.sync('vercel');
+  console.log("Resolved vercel CLI path:", vercelPath);
+
+  if (!fs.existsSync(vercelPath)) {
+    throw new Error(`❌ Vercel CLI not found at ${vercelPath}`);
+  }
+
+  // 🟡 Wrap the path in quotes for Windows and run as a shell command
+  const child = spawn(`"${vercelPath}" login`, {
+    stdio: 'inherit',
+    shell: true
   });
 
-  // Wait for the login process to complete
-  await new Promise((resolve, reject) => {
+  await new Promise((resolve) => {
     child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        // Don't reject here, as the process might exit with non-zero
-        // during the browser auth flow
-        resolve();
-      }
+      resolve(code);
     });
   });
 
-  // After the browser flow completes, verify we're actually logged in
-  // Keep checking for up to 5 minutes (increased timeout for new account setup)
   console.log('\n📱 Waiting for login to complete...');
   console.log('If you\'re creating a new account, please complete the Vercel account setup in your browser first.');
-  
+
+  // 🟢 Poll to check login success
   for (let i = 0; i < 150; i++) {
     try {
-      execSync('vercel whoami', { stdio: 'ignore' });
-      console.log('✅ Successfully logged in to Vercel!');
-      return true;
-    } catch (error) {
-      if (error.message.includes('Account not found')) {
-        console.log('ℹ️  Waiting for Vercel account setup to complete...');
+      const whoami = spawnSync(`"${vercelPath}" whoami`, {
+        stdio: 'ignore',
+        shell: true
+      });
+
+      if (whoami.status === 0) {
+        console.log('✅ Successfully logged in to Vercel!');
+        return true;
       }
-      // Still not logged in, wait 2 seconds before trying again
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch {
+      // ignore and wait
     }
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
   console.error('\n❌ Login timed out. Please ensure you have:');
