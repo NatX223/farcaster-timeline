@@ -323,8 +323,8 @@ export async function POST(request: Request) {
     console.log('Timeline creation completed successfully');
     return NextResponse.json({
       timelineId: docRef.id,
-      totalSupporters: supporters.length,
-      metadataUrl: metadataIpfsUri
+      metadataUrl: metadataIpfsUri,
+      rewardManager: rewardManagerAddress
     });
   } catch (error) {
     console.error('Error creating timeline:', error);

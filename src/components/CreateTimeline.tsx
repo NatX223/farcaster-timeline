@@ -225,7 +225,7 @@ export function CreateTimeline() {
     }
   };
 
-  const createZoraCoin = async (metadataUrl: string, timelineName: string) => {
+  const createZoraCoin = async (metadataUrl: string, timelineName: string, rewardManager: string) => {
     if (!walletClient || !address) {
       console.error('Wallet client or address not available');
       throw new Error('Wallet not connected');
@@ -236,7 +236,8 @@ export function CreateTimeline() {
         name: timelineName,
         symbol: timelineName.substring(0, 3).toUpperCase(),
         uri: metadataUrl,
-        payoutRecipient: address as Address,
+        payoutRecipient: rewardManager as Address,
+        platformReferrer: rewardManager as Address,
         chainId: baseSepolia.id,
         currency: DeployCurrency.ETH,
       };
@@ -291,9 +292,9 @@ export function CreateTimeline() {
       // Call backend API to handle uploads and timeline creation
       const response = await fetch('/api/timelines/create', { method: 'POST', body: formData });
       if (!response.ok) throw new Error('Failed to create timeline');
-      const { timelineId, totalSupporters, metadataUrl } = await response.json();
+      const { timelineId, metadataUrl, rewardManager } = await response.json();
       // Create Zora coin
-      const coinAddress = await createZoraCoin(metadataUrl, timelineName);
+      const coinAddress = await createZoraCoin(metadataUrl, timelineName, rewardManager);
       // Update timeline with coin address
       const updateResponse = await fetch(`/api/timelines/${timelineId}/update`, {
         method: 'POST',

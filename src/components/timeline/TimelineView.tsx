@@ -12,6 +12,7 @@ import { Input } from '~/components/ui/input';
 import { Dialog } from "@headlessui/react";
 import { db } from '~/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAccount } from 'wagmi';
 
 interface TimelineViewProps {
   timelineId: string;
@@ -23,8 +24,15 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
   const [loading, setLoading] = useState(true);
   const [isExchangeOpen, setIsExchangeOpen] = useState(false);
   const [amount, setAmount] = useState('');
+  const [stats, setStats] = useState({
+    allocation: '0%',
+    earnings: 'Ξ 0',
+    marketCap: '$0',
+    balance: '0'
+  });
   const { scrollY } = useScroll();
   const coverHeight = useTransform(scrollY, [0, 300], [300, 200]);
+  const { address } = useAccount();
 
   useEffect(() => {
     async function fetchTimelineAndCasts() {
@@ -58,6 +66,35 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
     fetchTimelineAndCasts();
   }, [timelineId]);
 
+  // Fetch user stats when timeline and user address are available
+  useEffect(() => {
+    async function fetchUserStats() {
+      if (!timeline || !address || !timeline.rewardManager || !timeline.coinAddress) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/timelines/${timelineId}/user-stats?userAddress=${address}&rewardManager=${timeline.rewardManager}&coinAddress=${timeline.coinAddress}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setStats({
+            allocation: data.supporterAllocation,
+            earnings: `Ξ ${data.earnings.toFixed(4)}`,
+            marketCap: `$${data.marketCap.toLocaleString()}`,
+            balance: data.balance.toFixed(4)
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user stats:', error);
+      }
+    }
+
+    fetchUserStats();
+  }, [timeline, address, timelineId]);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -72,13 +109,6 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
       </div>
     );
   }
-
-  // Dummy stats
-  const stats = {
-    allocation: '12%',
-    earnings: 'Ξ 0.32',
-    marketCap: '$9,210.45',
-  };
 
   // Replace getTemplateComponent with template switch and pass casts to timeline
   const getTemplateComponent = () => {
@@ -185,6 +215,10 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
               <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
                 <span className="text-gray-600">Market Cap</span>
                 <span className="font-semibold">{stats.marketCap}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
+                <span className="text-gray-600">Your Balance</span>
+                <span className="font-semibold">{stats.balance}</span>
               </div>
             </div>
 
