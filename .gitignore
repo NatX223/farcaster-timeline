@@ -42,3 +42,4 @@ next-env.d.ts
 src/app/oldPage.tsx
 src/app/oldLayout.tsx
 
+public/.well-known/farcaster.json

@@ -40,7 +40,7 @@ export async function GET(
     }
 
     // Fetch casts from Neynar
-    const apiKey = 'C3097677-5CC3-418D-9C95-5F2189C69EC6';
+    const apiKey = process.env.NEYNAR_API_KEY!;
     const options = {
       method: 'GET',
       headers: {

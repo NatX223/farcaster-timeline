@@ -123,7 +123,20 @@ async function loadEnvLocal() {
           'NEXT_PUBLIC_FRAME_BUTTON_TEXT',
           'NEXT_PUBLIC_ANALYTICS_ENABLED',
           'NEYNAR_API_KEY',
-          'NEYNAR_CLIENT_ID'
+          'NEYNAR_CLIENT_ID',
+          'USE_TUNNEL',
+          'REWARD_MANAGER_PRIVATE_KEY',
+          'PROVIDER_URL',
+          'NEXT_PUBLIC_FIREBASE_API_KEY',
+          'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+          'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+          'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+          'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+          'NEXT_PUBLIC_FIREBASE_APP_ID',
+          'NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID',
+          'NEXT_PUBLIC_ZORA_API_KEY',
+          'PINATA_JWT',
+          'PINATA_GATEWAY'
         ];
         
         // Copy allowed values except SEED_PHRASE to .env

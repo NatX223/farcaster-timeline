@@ -57,14 +57,14 @@ interface TimelineMetadata {
   };
 }
 
-const REWARD_MANAGER_PRIVATE_KEY = '017772a7d5ed1acd2c4ee778e476580eee1e8467bbd2ac0647457f6e391622c1';
-const PROVIDER_URL = 'https://base-sepolia.drpc.org';
+const REWARD_MANAGER_PRIVATE_KEY = process.env.REWARD_MANAGER_PRIVATE_KEY!;
+const PROVIDER_URL = process.env.PROVIDER_URL!;
 
-const PINATA_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI2YjkyYTUzNC1hY2UxLTRhMTMtYjE4OS0wM2M5MWE2NGE1ODUiLCJlbWFpbCI6ImFqdXppZXNpbmFjaGlAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6IjAwZGNlZWFlZjg4M2FmODljOTA2Iiwic2NvcGVkS2V5U2VjcmV0IjoiMmU5YjBmNDg5NzU2Mzc0MzVlNGMzMWEzZjBiMTYzZjAxMWJlNTEyNWY2NTc1OWQ4OTJjMWI3ZTFmODg1ZTBhNCIsImV4cCI6MTc4MTYxNTgzNn0.maSagw6gxJD2Cd7JMem6LgqwL_cQxUvsKk-h2ScqpmA';
-const PINATA_GATEWAY = 'https://sapphire-cool-cod-578.mypinata.cloud';
+const PINATA_JWT = process.env.PINATA_JWT!;
+const PINATA_GATEWAY = process.env.PINATA_GATEWAY!;
 const pinata = new PinataSDK({
   pinataJwt: PINATA_JWT,
-  pinataGateway: 'sapphire-cool-cod-578.mypinata.cloud',
+  pinataGateway: PINATA_GATEWAY,
 });
 
 async function getUnusedRewardManager() {
@@ -79,7 +79,7 @@ async function getEthAddressForFid(fid: string | number) {
   const options = {
     method: 'GET',
     headers: {
-      'x-api-key': 'C3097677-5CC3-418D-9C95-5F2189C69EC6'
+      'x-api-key': process.env.NEYNAR_API_KEY!
     }
   };
   const response = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, options);
@@ -96,7 +96,7 @@ async function fetchCastReactions(castHash: string) {
   const options = {
     method: 'GET',
     headers: {
-      'x-api-key': 'C3097677-5CC3-418D-9C95-5F2189C69EC6'
+      'x-api-key': process.env.NEYNAR_API_KEY!
     }
   };
 
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
       `https://api.neynar.com/v2/farcaster/cast/search/?limit=25&q=${encodedQuery}&author_fid=${timelineData.creator.fid}`,
       {
         headers: {
-          'x-api-key': "C3097677-5CC3-418D-9C95-5F2189C69EC6",
+          'x-api-key': process.env.NEYNAR_API_KEY!,
           'x-neynar-experimental': 'false'
         }
       }

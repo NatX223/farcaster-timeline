@@ -12,7 +12,6 @@ import { HelpCircle, X, Check, Image, Info, Circle } from 'lucide-react';
 import { Tooltip } from '~/components/ui/tooltip';
 import { TemplatePreview } from './timeline/TemplatePreview';
 import { TimelineTemplate } from '~/types/timeline';
-import dotenv from 'dotenv';
 import { useRouter } from 'next/navigation';
 import { useConnect, useAccount, useWalletClient } from 'wagmi';
 import { config } from '~/components/providers/WagmiProvider';
@@ -21,10 +20,8 @@ import { baseSepolia } from 'viem/chains';
 import { setApiKey, createCoin, DeployCurrency, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
 import { useUserProfile } from '~/components/providers/UserProfileContext';
 
-dotenv.config();
-
 // Set up Zora API key
-setApiKey("zora_api_fe72658b89edc8fdb08a34c69ef6c03d9a0fd4023424468250251dc15ba889ab");
+setApiKey(process.env.NEXT_PUBLIC_ZORA_API_KEY!);
 
 interface Tag {
   id: string;
@@ -111,27 +108,16 @@ export function CreateTimeline() {
     const fetchUserProfile = async () => {
       if (!session?.user?.fid) return;
       try {
-        const options = {
-          method: 'GET',
-          headers: {
-            'x-neynar-experimental': 'false',
-            'x-api-key': "6748D570-BEE9-4713-AADD-FBB2CBDA25A1"
-          }
-        };
-        const response = await fetch(
-          `https://api.neynar.com/v2/farcaster/user/bulk?fids=${session.user.fid}`,
-          options
-        );
+        const response = await fetch(`/api/user-profile?fid=${session.user.fid}`);
         if (!response.ok) {
           throw new Error(`Failed to fetch user profile: ${response.status}`);
         }
         const data = await response.json();
-        if (data.users && data.users.length > 0) {
-          const user = data.users[0];
+        if (data.user) {
           setUserProfile({
-            username: user.username || '',
-            display_name: user.display_name || '',
-            pfp_url: user.pfp_url || '',
+            username: data.user.username || '',
+            display_name: data.user.display_name || '',
+            pfp_url: data.user.pfp_url || '',
             fid: session.user.fid,
           });
         }

@@ -28,7 +28,6 @@ export function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { isConnected } = useAccount();
   const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
   const { isSDKLoaded, context } = useFrame();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [featuredTimelines, setFeaturedTimelines] = useState<any[]>([]);
@@ -40,39 +39,18 @@ export function LandingPage() {
       if (!session?.user?.fid) return;
 
       try {
-        const apiKey = process.env.NEYNAR_API_KEY;
-        console.log('API Key available:', !!apiKey);
-
-        const options = {
-          method: 'GET',
-          headers: {
-            'x-neynar-experimental': 'false',
-            'x-api-key': "6748D570-BEE9-4713-AADD-FBB2CBDA25A1"
-          }
-        };
-
-        console.log('Fetching user profile for FID:', session.user.fid);
-        const response = await fetch(
-          `https://api.neynar.com/v2/farcaster/user/bulk?fids=${session.user.fid}`,
-          options
-        );
-
+        const response = await fetch(`/api/user-profile?fid=${session.user.fid}`);
         if (!response.ok) {
           const errorText = await response.text();
           console.error('API Response:', errorText);
           throw new Error(`Failed to fetch user profile: ${response.status} ${errorText}`);
         }
-
         const data = await response.json();
-        console.log('API Response:', data);
-        if (data.users && data.users.length > 0) {
-          const user = data.users[0];
-          console.log(user);
-          
+        if (data.user) {
           setUserProfile({
-            username: user.username || '',
-            display_name: user.display_name || '',
-            pfp_url: user.pfp_url || '',
+            username: data.user.username || '',
+            display_name: data.user.display_name || '',
+            pfp_url: data.user.pfp_url || '',
             fid: session.user.fid,
           });
         }
