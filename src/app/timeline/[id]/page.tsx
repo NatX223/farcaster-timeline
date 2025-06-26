@@ -7,8 +7,11 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
 };
 
-export default async function TimelinePage({ params }: { params: { id: string } }) {
-  // Here you would typically fetch the timeline data using the ID
-  // For now, we'll just pass the ID to the component
-  return <TimelineView timelineId={params.id} />;
+export default async function TimelinePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <TimelineView timelineId={id} />;
 }

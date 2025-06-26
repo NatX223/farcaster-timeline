@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '~/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -17,14 +17,14 @@ export interface Cast {
     };
 }
 
-export async function GET(
-  request: Request,
-  context: { params: { id: string } }
-) {
-  const { id } = context.params;
-  
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('timelineid');
   try {
     // Get timeline doc to get cast hashes
+    if (!id) {
+      return NextResponse.json({ error: 'Timeline ID is required' }, { status: 400 });
+    }
     const timelineRef = doc(db, 'timelines', id);
     const timelineSnap = await getDoc(timelineRef);
     

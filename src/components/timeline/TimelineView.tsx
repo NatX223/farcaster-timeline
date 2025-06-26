@@ -50,7 +50,7 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
         setTimeline({ ...timelineData, id: timelineId });
 
         // Fetch casts from our API endpoint
-        const res = await fetch(`/api/timelines/${timelineId}/casts`);
+        const res = await fetch(`/api/timelines/casts?timelineid=${timelineId}`);
         if (!res.ok) {
           throw new Error('Failed to fetch casts');
         }
@@ -104,7 +104,7 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold font-clash mb-2">Timeline Not Found</h1>
-          <p className="text-gray-600">The timeline you're looking for doesn't exist.</p>
+          <p className="text-gray-600">The timeline you are looking for does not exist.</p>
         </div>
       </div>
     );

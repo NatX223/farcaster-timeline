@@ -9,43 +9,6 @@ interface TemplatePreviewProps {
   onSelect: (template: TimelineTemplate) => void;
 }
 
-const mockTimeline = {
-  id: '1',
-  name: 'Sample Timeline',
-  coverImage: '',
-  template: 'pulse-thread' as TimelineTemplate,
-  tags: [],
-  keywords: [],
-  supporterAllocation: 0,
-  casts: [
-    {
-      id: '1',
-      content: 'First cast in the timeline',
-      timestamp: new Date().toISOString(),
-      username: 'user1',
-      avatar: '',
-      likes: 10,
-      recasts: 5,
-      quotes: 2,
-    },
-    {
-      id: '2',
-      content: 'Second cast in the timeline',
-      timestamp: new Date().toISOString(),
-      username: 'user2',
-      avatar: '',
-      likes: 15,
-      recasts: 8,
-      quotes: 3,
-    },
-  ],
-  creator: {
-    fid: '1',
-    name: 'Creator',
-    avatar: '',
-  },
-};
-
 export function TemplatePreview({ template, isSelected, onSelect }: TemplatePreviewProps) {
   const getTemplateComponent = () => {
     switch (template) {

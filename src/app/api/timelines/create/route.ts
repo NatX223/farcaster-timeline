@@ -3,7 +3,6 @@ import { db } from '~/lib/firebase';
 import { collection, addDoc, doc, setDoc, getDocs, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ethers } from 'ethers';
 import { PinataSDK } from 'pinata';
-// @ts-ignore
 const rewardManagerABI = [
   {
     "inputs": [

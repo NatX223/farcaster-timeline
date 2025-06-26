@@ -4,11 +4,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
 ) {
   try {
-    const { coinAddress } = await request.json();
-    const { id } = context.params;
+    const { id, coinAddress } = await request.json();
     
     if (!coinAddress) {
       return NextResponse.json(

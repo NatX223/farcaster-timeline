@@ -282,10 +282,10 @@ export function CreateTimeline() {
       // Create Zora coin
       const coinAddress = await createZoraCoin(metadataUrl, timelineName, rewardManager);
       // Update timeline with coin address
-      const updateResponse = await fetch(`/api/timelines/${timelineId}/update`, {
+      const updateResponse = await fetch(`/api/timelines/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coinAddress }),
+        body: JSON.stringify({ timelineId, coinAddress }),
       });
       if (!updateResponse.ok) throw new Error('Failed to update timeline with coin address');
       // ... update preview as before ...
