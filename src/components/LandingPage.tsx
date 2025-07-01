@@ -336,7 +336,7 @@ export function LandingPage() {
                           // Add support functionality here
                         }}
                       >
-                        Support
+                        Trade
                       </button>
                     </div>
                   </div>

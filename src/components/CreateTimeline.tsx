@@ -288,7 +288,8 @@ export function CreateTimeline() {
         body: JSON.stringify({ timelineId, coinAddress }),
       });
       if (!updateResponse.ok) throw new Error('Failed to update timeline with coin address');
-      // ... update preview as before ...
+      // Redirect to the timeline page
+      router.push(`/timeline/${timelineId}`);
     } catch (error: any) {
       setErrorMsg(error.message || 'An error occurred');
     } finally {
@@ -403,7 +404,7 @@ export function CreateTimeline() {
                   variant="secondary"
                   onClick={() => handleAddTag('tags', tagInput)}
                   disabled={!tagInput.trim()}
-                  className="w-[80px]"
+                  className="w-20"
                 >
                   Add
                 </Button>
@@ -448,7 +449,7 @@ export function CreateTimeline() {
                   variant="secondary"
                   onClick={() => handleAddTag('keywords', keywordInput)}
                   disabled={!keywordInput.trim()}
-                  className="w-[80px]"
+                  className="w-20"
                 >
                   Add
                 </Button>
@@ -513,6 +514,8 @@ export function CreateTimeline() {
               ))}
             </div>
           </div>
+          
+          <div className="mt-8" />
 
           {/* Create Button */}
           <Button
@@ -522,7 +525,7 @@ export function CreateTimeline() {
             onClick={handleCreateTimeline}
           >
             {isLoading ? 'Creating...' : 'Create Timeline'}
-          </Button>
+          </Button>         
 
           {/* Timeline Preview */}
           {timelinePreview && (
