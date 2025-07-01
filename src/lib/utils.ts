@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { mnemonicToAccount } from 'viem/accounts';
-import { APP_BUTTON_TEXT, APP_DESCRIPTION, APP_ICON_URL, APP_NAME, APP_OG_IMAGE_URL, APP_PRIMARY_CATEGORY, APP_SPLASH_BACKGROUND_COLOR, APP_TAGS, APP_URL, APP_WEBHOOK_URL } from './constants';
+import { APP_BUTTON_TEXT, APP_DESCRIPTION, APP_ICON_URL, APP_NAME, APP_OG_IMAGE_URL, APP_PRIMARY_CATEGORY, APP_SPLASH_BACKGROUND_COLOR, APP_TAGS, APP_URL, APP_WEBHOOK_URL, APP_OWNERSHIP_HEADER, APP_OWNERSHIP_PAYLOAD, APP_OWNERSHIP_SIGNATURE } from './constants';
 import { APP_SPLASH_URL } from './constants';
 
 interface FrameMetadata {
@@ -120,7 +120,11 @@ export async function getFarcasterMetadata(): Promise<FrameManifest> {
   }
 
   return {
-    accountAssociation,
+    "accountAssociation": {
+      "header": APP_OWNERSHIP_HEADER ?? "header",
+      "payload": APP_OWNERSHIP_PAYLOAD ?? "payload",
+      "signature": APP_OWNERSHIP_SIGNATURE ?? "signature"
+    },
     frame: {
       version: "1",
       name: APP_NAME ?? "Frames v2 Demo",
