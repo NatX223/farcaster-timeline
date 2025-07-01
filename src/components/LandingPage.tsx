@@ -209,7 +209,7 @@ export function LandingPage() {
               className="space-y-8"
             >
               <h1 className="text-5xl font-bold font-clash text-text leading-tight">
-                Your Story. <span className="text-primary">Tokenized.</span>
+                Your Story. <br /> <span className="text-primary">Tokenized.</span>
               </h1>
               <p className="text-xl font-clash text-gray-600">
                 Create beautiful timelines from your casts and let the community support and earn with you.
