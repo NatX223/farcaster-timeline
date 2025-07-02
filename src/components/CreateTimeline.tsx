@@ -15,10 +15,10 @@ import { TimelineTemplate } from '~/types/timeline';
 import { useRouter } from 'next/navigation';
 import { useConnect, useAccount, useWalletClient } from 'wagmi';
 import { config } from '~/components/providers/WagmiProvider';
-import { createPublicClient, http, Address, Hex } from 'viem';
+import { createPublicClient, http, Address, Hex, parseEther } from 'viem';
 import { ArrowLeftIcon } from 'lucide-react';
-import { baseSepolia } from 'viem/chains';
-import { setApiKey, createCoin, DeployCurrency, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
+import { base } from 'viem/chains';
+import { setApiKey, createCoin, DeployCurrency, InitialPurchaseCurrency, getCoinCreateFromLogs, ValidMetadataURI } from '@zoralabs/coins-sdk';
 import { useUserProfile } from '~/components/providers/UserProfileContext';
 
 // Set up Zora API key
@@ -99,7 +99,7 @@ export function CreateTimeline() {
 
   // Create public client
   const publicClient = createPublicClient({
-    chain: config.chains[0], // Using the first chain from config (baseSepolia)
+    chain: config.chains[0], // Using the first chain from config (base)
     transport: http()
   });
 
@@ -222,11 +222,15 @@ export function CreateTimeline() {
       const coinParams = {
         name: timelineName,
         symbol: timelineName.substring(0, 3).toUpperCase(),
-        uri: metadataUrl,
+        uri: metadataUrl as ValidMetadataURI,
         payoutRecipient: rewardManager as Address,
         platformReferrer: rewardManager as Address,
-        chainId: baseSepolia.id,
+        chainId: base.id,
         currency: DeployCurrency.ETH,
+        initialPurchase: { 
+          currency: InitialPurchaseCurrency.ETH,
+          amount: parseEther("0.0001"),
+        },
       };
 
       console.log('Creating coin with params:', coinParams);
