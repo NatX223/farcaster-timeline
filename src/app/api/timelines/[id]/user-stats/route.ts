@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import { getCoin } from "@zoralabs/coins-sdk";
-import { baseSepolia } from "viem/chains";
+import { base } from "viem/chains";
 
 const rewardManagerABI = [
   {
@@ -83,8 +83,8 @@ export async function GET(
       );
     }
 
-    // Initialize provider for Base Sepolia
-    const provider = new ethers.JsonRpcProvider('https://sepolia.base.org');
+    // Initialize provider for Base https://mainnet.base.org
+    const provider = new ethers.JsonRpcProvider('https://mainnet.base.org');
 
     // Get supporter allocation
     const rewardManagerContract = new ethers.Contract(rewardManager, rewardManagerABI, provider);
@@ -98,7 +98,7 @@ export async function GET(
     // Get market cap from Zora SDK
     const coinResponse = await getCoin({
       address: coinAddress,
-      chain: baseSepolia.id
+      chain: base.id
     });
     const marketCap = coinResponse.data?.zora20Token?.marketCap || 0;
 

@@ -12,10 +12,12 @@ import { Input } from '~/components/ui/input';
 import { Dialog } from "@headlessui/react";
 import { db } from '~/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { useAccount } from 'wagmi';
+import { useAccount, useWalletClient } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon } from 'lucide-react';
-
+import { tradeCoin, TradeParameters } from '@zoralabs/coins-sdk';
+import { createPublicClient, http, parseEther } from 'viem';
+import { base } from 'viem/chains';
 interface TimelineViewProps {
   timelineId: string;
 }
@@ -36,6 +38,11 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
   const coverHeight = useTransform(scrollY, [0, 300], [300, 200]);
   const { address } = useAccount();
   const router = useRouter();
+  const { data: walletClient } = useWalletClient();
+  const [txLoading, setTxLoading] = useState(false);
+  const [txError, setTxError] = useState<string | null>(null);
+  const [txSuccess, setTxSuccess] = useState<string | null>(null);
+  const publicClient = createPublicClient({ chain: base, transport: http() }); // adjust chain as needed
 
   useEffect(() => {
     async function fetchTimelineAndCasts() {
@@ -97,6 +104,72 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
 
     fetchUserStats();
   }, [timeline, address, timelineId]);
+
+  // Add effect to clear success message after 3 seconds
+  useEffect(() => {
+    if (txSuccess) {
+      const timer = setTimeout(() => setTxSuccess(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [txSuccess]);
+
+  const handleBuy = async () => {
+    if (!walletClient || !address || !timeline?.coinAddress || !amount) return;
+    setTxLoading(true);
+    setTxError(null);
+    setTxSuccess(null);
+    try {
+      const account = walletClient.account || address;
+      const tradeParameters: TradeParameters = {
+        sell: {
+          type: 'erc20',
+          address: '0x1111111111166b7FE7bd91427724B487980aFc69', // ZORA
+        },
+        buy: {
+          type: 'erc20',
+          address: timeline.coinAddress,
+        },
+        amountIn: parseEther(amount),
+        slippage: 0.04,
+        sender: address,
+      };
+      await tradeCoin({ tradeParameters, walletClient, account, publicClient });
+      setTxSuccess('Buy transaction successful!');
+    } catch (err: any) {
+      setTxError(err.message || 'Transaction failed');
+    } finally {
+      setTxLoading(false);
+    }
+  };
+
+  const handleSell = async () => {
+    if (!walletClient || !address || !timeline?.coinAddress || !amount) return;
+    setTxLoading(true);
+    setTxError(null);
+    setTxSuccess(null);
+    try {
+      const account = walletClient.account || address;
+      const tradeParameters: TradeParameters = {
+        sell: {
+          type: 'erc20',
+          address: timeline.coinAddress,
+        },
+        buy: {
+          type: 'erc20',
+          address: '0x1111111111166b7FE7bd91427724B487980aFc69', // ZORA
+        },
+        amountIn: parseEther(amount),
+        slippage: 0.04,
+        sender: address,
+      };
+      await tradeCoin({ tradeParameters, walletClient, account, publicClient, validateTransaction: false });
+      setTxSuccess('Sell transaction successful!');
+    } catch (err: any) {
+      setTxError(err.message || 'Transaction failed');
+    } finally {
+      setTxLoading(false);
+    }
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -240,11 +313,15 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
                   onChange={(e) => setAmount(e.target.value)}
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="primary" className="w-full">Buy</Button>
-                  <Button variant="secondary" className="w-full">Sell</Button>
+                  <Button variant="primary" className="w-full" onClick={handleBuy} disabled={txLoading}>Buy</Button>
+                  <Button variant="secondary" className="w-full" onClick={handleSell} disabled={txLoading}>Sell</Button>
                 </div>
               </div>
             </div>
+
+            {txLoading && <div className="text-center text-sm text-gray-500 mt-2">Processing transaction...</div>}
+            {txError && <div className="text-center text-sm text-red-500 mt-2">{txError}</div>}
+            {txSuccess && <div className="text-center text-sm text-green-600 mt-2">{txSuccess}</div>}
           </div>
         </div>
       </div>
@@ -275,8 +352,8 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
                 onChange={(e) => setAmount(e.target.value)}
               />
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="primary" className="w-full">Buy</Button>
-                <Button variant="secondary" className="w-full">Sell</Button>
+                <Button variant="primary" className="w-full" onClick={handleBuy} disabled={txLoading}>Buy</Button>
+                <Button variant="secondary" className="w-full" onClick={handleSell} disabled={txLoading}>Sell</Button>
               </div>
             </div>
           </Dialog.Panel>
