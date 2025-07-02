@@ -13,6 +13,8 @@ import { Dialog } from "@headlessui/react";
 import { db } from '~/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useAccount } from 'wagmi';
+import { useRouter } from 'next/navigation';
+import { ArrowLeftIcon } from 'lucide-react';
 
 interface TimelineViewProps {
   timelineId: string;
@@ -33,6 +35,7 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
   const { scrollY } = useScroll();
   const coverHeight = useTransform(scrollY, [0, 300], [300, 200]);
   const { address } = useAccount();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchTimelineAndCasts() {
@@ -159,6 +162,10 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Back Button */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <ArrowLeftIcon className="w-7 h-7 text-primary absolute top-6 left-6 cursor-pointer" onClick={() => router.back()} />
+      </div>
       {/* Header Section */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useConnect, useAccount, useWalletClient } from 'wagmi';
 import { config } from '~/components/providers/WagmiProvider';
 import { createPublicClient, http, Address, Hex } from 'viem';
+import { ArrowLeftIcon } from 'lucide-react';
 import { baseSepolia } from 'viem/chains';
 import { setApiKey, createCoin, DeployCurrency, getCoinCreateFromLogs } from '@zoralabs/coins-sdk';
 import { useUserProfile } from '~/components/providers/UserProfileContext';
@@ -300,6 +301,7 @@ export function CreateTimeline() {
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <ArrowLeftIcon className="w-7 h-7 text-primary absolute top-6 left-6 cursor-pointer" onClick={() => router.back()} />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

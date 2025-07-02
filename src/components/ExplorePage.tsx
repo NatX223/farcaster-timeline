@@ -5,7 +5,8 @@ import { Button } from '~/components/ui/Button';
 import { useState, useEffect } from 'react';
 import { db } from '~/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-
+import { useRouter } from 'next/navigation';
+import { ArrowLeftIcon } from 'lucide-react';
 interface Timeline {
   id: string;
   title: string;
@@ -20,6 +21,7 @@ interface Timeline {
 export function ExplorePage() {
   const [timelines, setTimelines] = useState<Timeline[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchTimelines() {
@@ -47,6 +49,7 @@ export function ExplorePage() {
   return (
     <div className="bg-white py-16">
       <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-16">
+        <ArrowLeftIcon className="w-7 h-7 text-primary absolute top-6 left-6 cursor-pointer" onClick={() => router.back()} />
         {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

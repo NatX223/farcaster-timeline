@@ -2,8 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { Button } from '~/components/ui/Button';
-import { Star, Sparkles, ChevronDown, Users } from 'lucide-react';
+import { Star, Sparkles, ChevronDown, Users, ArrowLeftIcon } from 'lucide-react';
 import { ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Step {
   title: string;
@@ -35,9 +36,11 @@ const steps: Step[] = [
 ];
 
 export function HowItWorks() {
+  const router = useRouter();
   return (
     <div className="bg-white py-16">
       <div className="max-w-4xl mx-auto px-4 md:px-8 lg:px-16">
+      <ArrowLeftIcon className="w-7 h-7 text-primary absolute top-6 left-6 cursor-pointer" onClick={() => router.back()} />
         {/* Page Title Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
