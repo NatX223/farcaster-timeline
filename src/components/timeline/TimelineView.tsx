@@ -15,6 +15,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon } from 'lucide-react';
+import { CastCard } from './CastCard';
 
 interface TimelineViewProps {
   timelineId: string;
@@ -25,6 +26,7 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
   const [casts, setCasts] = useState<Cast[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExchangeOpen, setIsExchangeOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [stats, setStats] = useState({
     allocation: '0%',
@@ -160,6 +162,15 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
     }
   };
 
+  // Feed-style component for mobile
+  const getMobileFeed = () => (
+    <div className="flex flex-col gap-6">
+      {casts.map((cast) => (
+        <CastCard key={cast.hash} cast={cast} />
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Back Button */}
@@ -203,14 +214,20 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
           {/* Timeline Content */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm p-8">
-              {getTemplateComponent()}
+              {/* Show feed on mobile, template on desktop */}
+              <div className="block lg:hidden">
+                {getMobileFeed()}
+              </div>
+              <div className="hidden lg:block">
+                {getTemplateComponent()}
+              </div>
             </div>
           </div>
 
           {/* Stats and Exchange Panel */}
           <div className="space-y-6">
-            {/* Stats Panel */}
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+            {/* Stats Panel (Desktop) */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-sm p-6 space-y-4">
               <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
                 <span className="text-gray-600">Supporter Allocation</span>
                 <span className="font-semibold">{stats.allocation}</span>
@@ -228,7 +245,6 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
                 <span className="font-semibold">{stats.balance}</span>
               </div>
             </div>
-
             {/* Exchange Panel (Desktop) */}
             <div className="hidden lg:block bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-primary/20">
               <h3 className="text-lg font-semibold mb-4">Trade Timeline</h3>
@@ -249,10 +265,18 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
         </div>
       </div>
 
+      {/* Mobile Details Button */}
+      <button
+        onClick={() => setIsStatsOpen(true)}
+        className="fixed bottom-24 right-6 lg:hidden bg-primary text-white rounded-full px-6 py-3 shadow-lg"
+      >
+        Details
+      </button>
+
       {/* Mobile Exchange Button */}
       <button
         onClick={() => setIsExchangeOpen(true)}
-        className="fixed bottom-6 right-6 lg:hidden bg-primary text-white rounded-full px-6 py-3 shadow-lg"
+        className="fixed bottom-6 right-6 lg:hidden bg-gradient-primary text-white rounded-full px-6 py-3 shadow-lg"
       >
         Trade
       </button>
@@ -277,6 +301,38 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
               <div className="grid grid-cols-2 gap-4">
                 <Button variant="primary" className="w-full">Buy</Button>
                 <Button variant="secondary" className="w-full">Sell</Button>
+              </div>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Stats Modal (Mobile) */}
+      <Dialog
+        open={isStatsOpen}
+        onClose={() => setIsStatsOpen(false)}
+        className="relative z-50"
+      >
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-end justify-center p-4">
+          <Dialog.Panel className="w-full max-w-md bg-white rounded-t-xl p-6">
+            <Dialog.Title className="text-lg font-semibold mb-4">Timeline Details</Dialog.Title>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
+                <span className="text-gray-600">Supporter Allocation</span>
+                <span className="font-semibold">{stats.allocation}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
+                <span className="text-gray-600">Earnings</span>
+                <span className="font-semibold">{stats.earnings}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
+                <span className="text-gray-600">Market Cap</span>
+                <span className="font-semibold">{stats.marketCap}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-primary/20">
+                <span className="text-gray-600">Your Balance</span>
+                <span className="font-semibold">{stats.balance}</span>
               </div>
             </div>
           </Dialog.Panel>
