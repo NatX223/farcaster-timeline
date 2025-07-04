@@ -16,9 +16,86 @@ import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon } from 'lucide-react';
 import { CastCard } from './CastCard';
+import { useWalletClient } from 'wagmi';
+import { parseEther } from 'viem';
 
 interface TimelineViewProps {
   timelineId: string;
+}
+
+// Minimal ABI for claim
+const claimAbi = [
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "claim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+];
+
+function ClaimEarnings({ rewardManager }: { rewardManager: string }) {
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const [amount, setAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  async function handleClaim() {
+    setLoading(true);
+    setSuccess('');
+    setError('');
+    try {
+      if (!walletClient || !address) throw new Error('Wallet not connected');
+      const amt = amount.trim();
+      if (!amt || isNaN(Number(amt)) || Number(amt) <= 0) throw new Error('Enter a valid amount');
+      const tx = await walletClient.writeContract({
+        address: rewardManager as `0x${string}`,
+        abi: claimAbi,
+        functionName: 'claim',
+        args: [parseEther(amt)],
+        account: address,
+      });
+      setSuccess('Claim transaction sent!');
+      setAmount('');
+    } catch (e: any) {
+      setError(e.message || 'Error claiming earnings');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min="0"
+          placeholder="Amount to claim"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          className="w-1/2"
+        />
+        <Button
+          variant="primary"
+          onClick={handleClaim}
+          disabled={loading}
+          className="w-1/2"
+        >
+          {loading ? 'Claiming...' : 'Claim'}
+        </Button>
+      </div>
+      {success && <div className="text-green-600 text-sm">{success}</div>}
+      {error && <div className="text-red-600 text-sm">{error}</div>}
+    </div>
+  );
 }
 
 export function TimelineView({ timelineId }: TimelineViewProps) {
@@ -27,6 +104,7 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
   const [loading, setLoading] = useState(true);
   const [isExchangeOpen, setIsExchangeOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [isClaimOpen, setIsClaimOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [stats, setStats] = useState({
     allocation: '0%',
@@ -244,6 +322,12 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
                 <span className="text-gray-600">Your Balance</span>
                 <span className="font-semibold">{stats.balance}</span>
               </div>
+              {/* Claim Earnings (Desktop) */}
+              {timeline.rewardManager && (
+                <div className="pt-4">
+                  <ClaimEarnings rewardManager={timeline.rewardManager} />
+                </div>
+              )}
             </div>
             {/* Exchange Panel (Desktop) */}
             <div className="hidden lg:block bg-white/80 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-primary/20">
@@ -334,6 +418,12 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
                 <span className="text-gray-600">Your Balance</span>
                 <span className="font-semibold">{stats.balance}</span>
               </div>
+              {/* Claim Earnings (Mobile, in details dialog) */}
+              {timeline.rewardManager && (
+                <div className="pt-4">
+                  <ClaimEarnings rewardManager={timeline.rewardManager} />
+                </div>
+              )}
             </div>
           </Dialog.Panel>
         </div>

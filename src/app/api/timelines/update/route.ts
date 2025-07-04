@@ -6,7 +6,7 @@ export async function POST(
   request: Request,
 ) {
   try {
-    const { id, coinAddress } = await request.json();
+    const { timelineId, coinAddress } = await request.json();
     
     if (!coinAddress) {
       return NextResponse.json(
@@ -16,11 +16,11 @@ export async function POST(
     }
 
     console.log('Updating timeline with coin address:', {
-      timelineId: id,
+      timelineId,
       coinAddress
     });
 
-    const timelineRef = doc(db, 'timelines', id);
+    const timelineRef = doc(db, 'timelines', timelineId);
     await updateDoc(timelineRef, {
       coinAddress,
       updatedAt: new Date().toISOString()
@@ -30,8 +30,8 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      timelineId: id,
-      coinAddress
+      timelineId: timelineId,
+      coinAddress: coinAddress
     });
   } catch (error) {
     console.error('Error updating timeline:', error);

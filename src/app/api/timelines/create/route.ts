@@ -57,7 +57,7 @@ interface TimelineMetadata {
 }
 
 const REWARD_MANAGER_PRIVATE_KEY = process.env.REWARD_MANAGER_PRIVATE_KEY!;
-const PROVIDER_URL = process.env.PROVIDER_URL!;
+const PROVIDER_URL = 'https://sepolia.base.org';
 
 const PINATA_JWT = process.env.PINATA_JWT!;
 const PINATA_GATEWAY = process.env.PINATA_GATEWAY!;
@@ -259,7 +259,7 @@ export async function POST(request: Request) {
       const file = new File([buffer], fileName, { type: coverImage.type });
       const upload = await pinata.upload.public.file(file);
       coverImageIpfsCid = upload.cid;
-      coverImageUrl = `${PINATA_GATEWAY}/ipfs/${coverImageIpfsCid}`;
+      coverImageUrl = `https://${PINATA_GATEWAY}/ipfs/${coverImageIpfsCid}`;
       coverImageIpfsUri = `ipfs://${coverImageIpfsCid}`;
     }
 
@@ -319,7 +319,7 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log('Timeline creation completed successfully');
+    console.log('Timeline creation completed successfully', docRef.id);
     return NextResponse.json({
       timelineId: docRef.id,
       metadataUrl: metadataIpfsUri,

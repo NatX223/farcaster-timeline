@@ -223,14 +223,15 @@ export function CreateTimeline() {
         name: timelineName,
         symbol: timelineName.substring(0, 3).toUpperCase(),
         uri: metadataUrl as ValidMetadataURI,
+        owners: [address as Address],
         payoutRecipient: rewardManager as Address,
         platformReferrer: rewardManager as Address,
         chainId: base.id,
         currency: DeployCurrency.ETH,
-        initialPurchase: { 
-          currency: InitialPurchaseCurrency.ETH,
-          amount: parseEther("0.0001"),
-        },
+        // initialPurchase: { 
+        //   currency: InitialPurchaseCurrency.ETH,
+        //   amount: parseEther("0.0005"),
+        // },
       };
 
       console.log('Creating coin with params:', coinParams);
