@@ -27,6 +27,7 @@ const rewardManagerABI = [
 interface TimelineData {
   name: string;
   template: string;
+  authorAddress: string;
   creator: {
     fid: string;
     username: string;
@@ -218,7 +219,7 @@ export async function POST(request: Request) {
       throw new Error('Author has no verified ETH address');
     }
     const authorPercent = 10000 - totalPercent;
-    const addresses = [authorEthAddress, ...supporterAddresses];
+    const addresses = [timelineData.authorAddress, ...supporterAddresses];
     const percentages = [authorPercent, ...supporterPercentages];
     console.log('Addresses for initialize:', addresses);
     console.log('Percentages for initialize:', percentages);

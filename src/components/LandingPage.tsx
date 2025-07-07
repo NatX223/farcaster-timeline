@@ -229,10 +229,7 @@ export function LandingPage() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="relative"
             >
-              <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent2/10 rounded-xl p-4 flex items-center justify-center">
-                <img src="/Scene-1.gif" alt="Timeline Animation" className="max-h-72 w-auto mx-auto rounded-lg shadow-lg" />
-              </div>
-              <p className="text-center mt-4 text-sm text-gray-500">
+              <p className="text-center mt-4 text-lg text-gray-500">
                 Powered by Zora · Farcaster
               </p>
             </motion.div>

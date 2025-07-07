@@ -274,6 +274,7 @@ export function CreateTimeline() {
       const timelineData = {
         name: timelineName,
         template: selectedTemplate,
+        authorAddress: address,
         creator: {
           fid: session.user.fid,
           username: userProfile?.username || session.user.fid.toString(),
