@@ -122,7 +122,7 @@ export function TimelineView({ timelineId }: TimelineViewProps) {
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
   const [txSuccess, setTxSuccess] = useState<string | null>(null);
-  const publicClient = createPublicClient({ chain: base, transport: http() });
+  const publicClient = createPublicClient({ chain: base, transport: http('https://mainnet.base.org') });
 
   useEffect(() => {
     async function fetchTimelineAndCasts() {

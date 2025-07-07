@@ -57,7 +57,7 @@ interface TimelineMetadata {
 }
 
 const REWARD_MANAGER_PRIVATE_KEY = process.env.REWARD_MANAGER_PRIVATE_KEY!;
-const PROVIDER_URL = 'https://sepolia.base.org';
+const PROVIDER_URL = 'https://mainnet.base.org';
 
 const PINATA_JWT = process.env.PINATA_JWT!;
 const PINATA_GATEWAY = process.env.PINATA_GATEWAY!;

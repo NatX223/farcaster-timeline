@@ -13,7 +13,7 @@ import { Tooltip } from '~/components/ui/tooltip';
 import { TemplatePreview } from './timeline/TemplatePreview';
 import { TimelineTemplate } from '~/types/timeline';
 import { useRouter } from 'next/navigation';
-import { useConnect, useAccount, useWalletClient } from 'wagmi';
+import { useConnect, useAccount, useWalletClient, useDisconnect } from 'wagmi';
 import { config } from '~/components/providers/WagmiProvider';
 import { createPublicClient, http, Address, Hex, parseEther } from 'viem';
 import { ArrowLeftIcon } from 'lucide-react';
@@ -83,6 +83,7 @@ export function CreateTimeline() {
   const { connect, connectors } = useConnect();
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { disconnect } = useDisconnect();
   const { userProfile, setUserProfile } = useUserProfile();
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>('');
@@ -96,11 +97,12 @@ export function CreateTimeline() {
   const [isLoading, setIsLoading] = useState(false);
   const [timelinePreview, setTimelinePreview] = useState<TimelinePreview | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Create public client
   const publicClient = createPublicClient({
     chain: config.chains[0], // Using the first chain from config (base)
-    transport: http()
+    transport: http("https://mainnet.base.org")
   });
 
   // Fetch user profile when authenticated, only if not already cached
@@ -131,13 +133,6 @@ export function CreateTimeline() {
     }
   }, [session, status, userProfile, setUserProfile]);
 
-  // Auto-connect Frame wallet if in Frame context
-  useEffect(() => {
-    if (session?.user?.fid && !isConnected && connectors[0]) {
-      connect({ connector: connectors[0] });
-    }
-  }, [session, isConnected, connectors, connect]);
-
   const handleSignIn = useCallback(async () => {
     try {
       const nonce = await getCsrfToken();
@@ -149,15 +144,23 @@ export function CreateTimeline() {
         signature: result.signature,
         redirect: false,
       });
-
-      // After successful sign-in, connect the wallet
-      if (connectors[0]) {
-        connect({ connector: connectors[0] });
-      }
+      // Instead of connecting directly, show wallet modal
+      setShowWalletModal(true);
     } catch (error) {
       console.error('Sign in error:', error);
     }
   }, [connect, connectors]);
+
+  const handleWalletSelect = (index: number) => {
+    if (connectors[index]) {
+      connect({ connector: connectors[index] });
+      setShowWalletModal(false);
+    }
+  };
+
+  const handleDisconnect = useCallback(() => {
+    disconnect();
+  }, [disconnect]);
 
   const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -235,6 +238,7 @@ export function CreateTimeline() {
       };
 
       console.log('Creating coin with params:', coinParams);
+      console.log('connected chain', publicClient.chain)
       const result = await createCoin(coinParams, walletClient, publicClient, {
         gasMultiplier: 120,
       });
@@ -323,7 +327,10 @@ export function CreateTimeline() {
             </div>
           ) : (
             <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
+              <div 
+                className={`flex items-center space-x-3 ${isConnected ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                onClick={isConnected ? handleDisconnect : undefined}
+              >
                 <div className="h-10 w-10 rounded-full overflow-hidden">
                   {userProfile?.pfp_url ? (
                     <img 
@@ -529,6 +536,7 @@ export function CreateTimeline() {
             variant="primary"
             className="w-full"
             disabled={!session || !timelineName || !selectedTemplate || isLoading}
+            // disabled={!timelineName || !selectedTemplate || isLoading}
             onClick={handleCreateTimeline}
           >
             {isLoading ? 'Creating...' : 'Create Timeline'}
@@ -625,6 +633,32 @@ export function CreateTimeline() {
           )}
         </motion.div>
       </div>
+
+      {showWalletModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-xs text-center relative">
+            <h2 className="text-lg font-bold mb-4">Choose a Wallet</h2>
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowWalletModal(false)}
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="space-y-4">
+              <Button className="w-full" variant="secondary" onClick={() => handleWalletSelect(0)}>
+                Farcaster Wallet
+              </Button>
+              <Button className="w-full" variant="secondary" onClick={() => handleWalletSelect(1)}>
+                Coinbase Wallet
+              </Button>
+              <Button className="w-full" variant="secondary" onClick={() => handleWalletSelect(2)}>
+                MetaMask
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

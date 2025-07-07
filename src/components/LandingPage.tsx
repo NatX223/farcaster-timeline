@@ -33,6 +33,7 @@ export function LandingPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [featuredTimelines, setFeaturedTimelines] = useState<any[]>([]);
   const [isFeaturedLoading, setIsFeaturedLoading] = useState(true);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Fetch user profile when session is available
   useEffect(() => {
@@ -65,13 +66,6 @@ export function LandingPage() {
     }
   }, [session, status, setUserProfile]);
 
-  // Auto-connect Frame wallet if in Frame context
-  useEffect(() => {
-    if (session?.user?.fid && !isConnected && connectors[0]) {
-      connect({ connector: connectors[0] });
-    }
-  }, [session, isConnected, connectors, connect]);
-
   const handleSignIn = useCallback(async () => {
     try {
       const nonce = await getCsrfToken();
@@ -83,15 +77,19 @@ export function LandingPage() {
         signature: result.signature,
         redirect: false,
       });
-
-      // After successful sign-in, connect the wallet
-      if (connectors[0]) {
-        connect({ connector: connectors[0] });
-      }
+      // Instead of connecting directly, show wallet modal
+      setShowWalletModal(true);
     } catch (error) {
       console.error('Sign in error:', error);
     }
   }, [connect, connectors]);
+
+  const handleWalletSelect = (index: number) => {
+    if (connectors[index]) {
+      connect({ connector: connectors[index] });
+      setShowWalletModal(false);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -405,6 +403,32 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {showWalletModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-xs text-center relative">
+            <h2 className="text-lg font-bold mb-4">Choose a Wallet</h2>
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowWalletModal(false)}
+              aria-label="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div className="space-y-4">
+              <Button className="w-full" variant="secondary" onClick={() => handleWalletSelect(0)}>
+                Farcaster Wallet
+              </Button>
+              <Button className="w-full" variant="secondary" onClick={() => handleWalletSelect(1)}>
+                Coinbase Wallet
+              </Button>
+              <Button className="w-full" variant="secondary" onClick={() => handleWalletSelect(2)}>
+                MetaMask
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 } 

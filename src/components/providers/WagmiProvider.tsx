@@ -42,9 +42,9 @@ function useCoinbaseWalletAutoConnect() {
 }
 
 export const config = createConfig({
-  chains: [baseSepolia, optimism, mainnet, degen, unichain],
+  chains: [base, optimism, mainnet, degen, unichain],
   transports: {
-    [baseSepolia.id]: http(),
+    [base.id]: http("https://mainnet.base.org"),
     [optimism.id]: http(),
     [mainnet.id]: http(),
     [degen.id]: http(),
